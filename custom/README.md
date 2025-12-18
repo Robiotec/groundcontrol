@@ -13,12 +13,13 @@ nix run nixpkgs#appimage-run build/*.AppImage
 
 ## Changed Source Code
 
-- src/GPS/GPSProvider.cc : Line 223: Temporary fix for new GPSDriverUBX use of GPSDriverUBX::Settings struct.
-- src/QmlControls/QGCPalette.cc: Change palette directly from source.
-- src/UI/AppSettings/HelpSettings.qml: Change for Robiotec Info.
-- src/Vehicle/Vehicle.cc: Add necessary copied code to add RPMSensor display.
-- src/Vehicle/Vehicle.h: Add necessary copied code to add RPMSensor diplay.
-- src/Vehicle/FactGroups/CMakeLists.txt: Add necessary copied code to compile RPMSensor display.
-- src/Vehicle/FactGroups/RPMSensorFact.json: Copy of RPMFact.json with less inputs.
-- src/Vehicle/FactGroups/VehicleRPMSensorFactGroup.cc: Copy of VehicleRPMFactGroup.cc w/ VehicleHygrometerFactGroup.cc with MAVLINK_MSG_ID_RPM input data from ArdupilotMega.XML MavLink dialect.
-- src/Vehicle/FactGroups/VehicleRPMSensorFactGroup.h: Copy of VehicleRPMFactGroup.h to setup RPM Sensor display.
+- _src/GPS/GPSProvider.cc Line 223:_ Temporary fix for new GPSDriverUBX use of GPSDriverUBX::Settings struct.
+(last argument provided was: `GPSDriverUBX::Settings(0b111, kGPSHeadingOffset, UBX_BAUDRATE_M8_AND_NEWER, true, GPSDriverUBX::UBXMode::GroundControlStation)`)
+- _src/QmlControls/QGCPalette.cc:_ Change palette directly from source.
+- _src/UI/AppSettings/HelpSettings.qml:_ Change for Robiotec Info.
+- _src/Vehicle/Vehicle.cc:_ Add necessary copied code to add RPMSensor display.
+- _src/Vehicle/Vehicle.h:_ Add necessary copied code to add RPMSensor diplay.
+- _src/Vehicle/FactGroups/CMakeLists.txt:_ Add necessary copied code to compile RPMSensor display.
+- _src/Vehicle/FactGroups/RPMSensorFact.json:_ Copy of RPMFact.json with less inputs.
+- _src/Vehicle/FactGroups/VehicleRPMSensorFactGroup.cc:_ Copy of VehicleRPMFactGroup.cc w/ VehicleHygrometerFactGroup.cc with MAVLINK_MSG_ID_RPM input data from ArdupilotMega.XML MavLink dialect.
+- _src/Vehicle/FactGroups/VehicleRPMSensorFactGroup.h:_ Copy of VehicleRPMFactGroup.h to setup RPM Sensor display.
