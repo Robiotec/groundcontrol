@@ -1,0 +1,8 @@
+<RCC>
+	<qresource prefix="/InstrumentValueIcons">
+		<file alias="address.svg">address.svg</file>
+		<file alias="airplane-window.svg">airplane-window.svg</file>
+		<file alias="attack-drone.svg">attack-drone.svg</file>
+		<file alias="glider.svg">glider.svg</file>
+	</qresource>
+</RCC>
