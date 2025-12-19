@@ -5,6 +5,10 @@
   </qresource>
   <qresource prefix="/qmlimages">
     <file alias="APM/BrandImage">resources/brand/firmware.png</file>
+    <file alias="PlanCreator/BlankPlanCreator.png">resources/images/BlankPlanCreator.png</file>
+    <file alias="PlanCreator/CorridorScanPlanCreator.png">resources/images/CorridorScanPlanCreator.png</file>
+    <file alias="PlanCreator/StructureScanPlanCreator.png">resources/images/StructureScanPlanCreator.png</file>
+    <file alias="PlanCreator/SurveyPlanCreator.png">resources/images/SurveyPlanCreator.png</file>
   </qresource>
   <qresource prefix="/res">
     <file alias="QGCLogoFull.svg">resources/icons/logotipo.svg</file>
