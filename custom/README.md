@@ -23,3 +23,4 @@ nix run nixpkgs#appimage-run build/*.AppImage
 - _src/Vehicle/FactGroups/RPMSensorFact.json:_ Copy of RPMFact.json with less inputs.
 - _src/Vehicle/FactGroups/VehicleRPMSensorFactGroup.cc:_ Copy of VehicleRPMFactGroup.cc w/ VehicleHygrometerFactGroup.cc with MAVLINK_MSG_ID_RPM input data from ArdupilotMega.XML MavLink dialect.
 - _src/Vehicle/FactGroups/VehicleRPMSensorFactGroup.h:_ Copy of VehicleRPMFactGroup.h to setup RPM Sensor display.
+- _src/GQCApplication.cc:_ Delete QGC_DAILY_BUILD from Application information in order to build without \<_Daily_\> after the name.

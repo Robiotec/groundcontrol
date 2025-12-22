@@ -1,8 +1,5 @@
 <!DOCTYPE RCC>
 <RCC>
-  <qresource prefix="/custom/icons">
-    <file alias="qgroundcontrol.ico">resources/icons/medium_256.ico</file>
-  </qresource>
   <qresource prefix="/qmlimages">
     <file alias="APM/BrandImage">resources/brand/firmware.png</file>
     <file alias="PlanCreator/BlankPlanCreator.png">resources/images/BlankPlanCreator.png</file>
@@ -11,9 +8,12 @@
     <file alias="PlanCreator/SurveyPlanCreator.png">resources/images/SurveyPlanCreator.png</file>
   </qresource>
   <qresource prefix="/res">
+    <file alias="qgroundcontrol.ico">resources/icons/medium_256.ico</file>
     <file alias="QGCLogoFull.svg">resources/icons/logotipo.svg</file>
     <file alias="QGCLogoBlack.svg">resources/icons/logotipo_min.svg</file>
     <file alias="QGCLogoWhite.svg">resources/icons/logotipo_min.svg</file>
+    <file alias="QGCLogoArrow.svg">resources/icons/arrow.svg</file>
+    <file alias="OpenDoor.svg">resources/icons/exit.svg</file>
     <file alias="NoVideoBackground.jpg">resources/images/NoVideoBackground.jpg</file>
     <file alias="notile.png">resources/images/NoTile.png</file>
   </qresource>
