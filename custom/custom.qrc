@@ -6,13 +6,16 @@
     <file alias="PlanCreator/CorridorScanPlanCreator.png">resources/images/CorridorScanPlanCreator.png</file>
     <file alias="PlanCreator/StructureScanPlanCreator.png">resources/images/StructureScanPlanCreator.png</file>
     <file alias="PlanCreator/SurveyPlanCreator.png">resources/images/SurveyPlanCreator.png</file>
+    <file alias="compassInstrumentArrow.svg">resources/assets/arrow.svg</file>
+    <file alias="vehicleArrowOpaque.svg">resources/assets/arrow.svg</file>
+    <file alias="vehicleArrowOutline.svg">resources/assets/arrow.svg</file>
   </qresource>
   <qresource prefix="/res">
-    <file alias="qgroundcontrol.ico">resources/icons/medium_256.ico</file>
-    <file alias="QGCLogoFull.svg">resources/icons/logotipo.svg</file>
-    <file alias="QGCLogoBlack.svg">resources/icons/logotipo_min.svg</file>
-    <file alias="QGCLogoWhite.svg">resources/icons/logotipo_min.svg</file>
-    <file alias="QGCLogoArrow.svg">resources/icons/arrow.svg</file>
+    <file alias="qgroundcontrol.ico">resources/brand/medium_256.ico</file>
+    <file alias="QGCLogoFull.svg">resources/brand/logotipo.svg</file>
+    <file alias="QGCLogoBlack.svg">resources/brand/logotipo_min.svg</file>
+    <file alias="QGCLogoWhite.svg">resources/brand/logotipo_min.svg</file>
+    <file alias="QGCLogoArrow.svg">resources/assets/arrow.svg</file>
     <file alias="OpenDoor.svg">resources/icons/exit.svg</file>
     <file alias="NoVideoBackground.jpg">resources/images/NoVideoBackground.jpg</file>
     <file alias="notile.png">resources/images/NoTile.png</file>
