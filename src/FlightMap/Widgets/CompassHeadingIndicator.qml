@@ -31,8 +31,8 @@ Canvas {
 
     onPaint: {
         var ctx = getContext("2d")
-        ctx.strokeStyle = simplified ? "#EE3424" : _qgcPal.text
-        ctx.fillStyle = "#EE3424"
+        ctx.strokeStyle = simplified ? "#ffa500" : _qgcPal.text
+        ctx.fillStyle = "#ffa500"
         ctx.lineWidth = 1
         ctx.beginPath()
         ctx.moveTo(width / 2, 0)
@@ -41,7 +41,7 @@ Canvas {
         ctx.lineTo(width / 2, 0)
         ctx.fill()
         ctx.stroke()
-        ctx.fillStyle = "#C72B27"
+        ctx.fillStyle = "#cd853f"
         ctx.beginPath()
         ctx.moveTo(width / 2, 0)
         ctx.lineTo(0, height)
