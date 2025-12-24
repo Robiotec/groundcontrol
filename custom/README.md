@@ -17,10 +17,9 @@ nix run nixpkgs#appimage-run build/*.AppImage
 (last argument provided was: `GPSDriverUBX::Settings(0b111, kGPSHeadingOffset, UBX_BAUDRATE_M8_AND_NEWER, true, GPSDriverUBX::UBXMode::GroundControlStation)`)
 - _src/QmlControls/QGCPalette.cc:_ Change palette directly from source.
 - _src/UI/AppSettings/HelpSettings.qml:_ Change for Robiotec Info.
-- _src/Vehicle/Vehicle.cc:_ Add necessary copied code to add RPMSensor display.
-- _src/Vehicle/Vehicle.h:_ Add necessary copied code to add RPMSensor diplay.
-- _src/Vehicle/FactGroups/CMakeLists.txt:_ Add necessary copied code to compile RPMSensor display.
-- _src/Vehicle/FactGroups/RPMSensorFact.json:_ Copy of RPMFact.json with less inputs.
-- _src/Vehicle/FactGroups/VehicleRPMSensorFactGroup.cc:_ Copy of VehicleRPMFactGroup.cc w/ VehicleHygrometerFactGroup.cc with MAVLINK_MSG_ID_RPM input data from ArdupilotMega.XML MavLink dialect.
-- _src/Vehicle/FactGroups/VehicleRPMSensorFactGroup.h:_ Copy of VehicleRPMFactGroup.h to setup RPM Sensor display.
+- _src/Vehicle/FactGroups/RPMFact.json:_ Add RPM Sensors.
+- _src/Vehicle/FactGroups/VehicleRPMFactGroup.cc:_ w/ help of code from VehicleHygrometerFactGroup.cc with MAVLINK_MSG_ID_RPM input data from ArdupilotMega.XML MavLink dialect.
+- _src/Vehicle/FactGroups/VehicleRPMFactGroup.h:_ Declare RPM Sensors variables and methods.
 - _src/GQCApplication.cc:_ Delete QGC_DAILY_BUILD from Application information in order to build without \<_Daily_\> after the name.
+- _src/FlightMap/Widgets/CompassHeadingIndicator.qml:_ Changing infill colors derived from [Qt Color Table](https://doc.qt.io/qt-6/qml-color.html?search=hsla#svg-color-reference) to differenciate from QGC.
+- _src/FlightMap/Widgets/QGCArtificialHorizon.qml:_ Changing Gradient colors obtained from [Qt Color Table](https://doc.qt.io/qt-6/qml-color.html?search=hsla#svg-color-reference) to differenciate from QGC.
