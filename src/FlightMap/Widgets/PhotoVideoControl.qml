@@ -1,12 +1,3 @@
-/****************************************************************************
- *
- * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
- *
- * QGroundControl is licensed according to the terms in the file
- * COPYING.md in the root of the source code directory.
- *
- ****************************************************************************/
-
 import QtQuick
 import QtPositioning
 import QtQuick.Layouts
@@ -18,6 +9,7 @@ import QGroundControl.Controls
 import QGroundControl.FactControls
 
 Rectangle {
+    id:         photoVideoControl
     width:      mainLayout.width + (_smallMargins * 2)
     height:     mainLayout.height + (_smallMargins * 2)
     color:      Qt.rgba(qgcPal.window.r, qgcPal.window.g, qgcPal.window.b, 0.5)
@@ -230,7 +222,7 @@ Rectangle {
                     Rectangle {
                         anchors.centerIn:           parent
                         anchors.alignWhenCentered:  false // Prevents anchors.centerIn from snapping to integer coordinates, which can throw off centering.
-                        color:                      captureButton.captureButtonPalette.buttonBorder
+                        color:                      captureButtonPalette.buttonBorder
                         width:                      parent.width * 0.75
                         height:                     width
                         radius:                     width * 0.5
@@ -244,7 +236,7 @@ Rectangle {
                         radius:                     _isShootingInCurrentMode ? ScreenTools.defaultFontPixelWidth * 0.5 : width * 0.5
                         color:                      captureButton.captureButtonColor
                         border.width:               1
-                        border.color:               captureButton.captureButtonPalette.buttonBorder
+                        border.color:               captureButtonPalette.buttonBorder
 
                         property bool _isShootingInPhotoMode:   _cameraInPhotoMode && _camera.photoCaptureStatus === MavlinkCameraControl.PHOTO_CAPTURE_IN_PROGRESS
                         property bool _isShootingInVideoMode:   (!_cameraInPhotoMode && _camera.videoCaptureStatus === MavlinkCameraControl.VIDEO_CAPTURE_STATUS_RUNNING)
@@ -276,7 +268,7 @@ Rectangle {
                 // Record time / Capture count
                 Rectangle {
                     Layout.alignment:       Qt.AlignHCenter
-                    color:                  _videoCaptureIdle && _photoCaptureIdle ? "transparent" : captureButton.captureButtonColor
+                    color:                  _videoCaptureIdle || _cameraInPhotoMode ? "transparent" : captureButton.captureButtonColor
                     Layout.preferredWidth:  (_cameraInVideoMode ? videoRecordTime.width : photoCaptureCount.width) + (_smallMargins * 2)
                     Layout.preferredHeight: (_cameraInVideoMode ? videoRecordTime.height : photoCaptureCount.height)
                     radius:                 _smallMargins
@@ -380,9 +372,15 @@ Rectangle {
 
                 QGCMouseArea {
                     fillItem:   parent
-                    onClicked:  settingsDialogComponent.createObject(mainWindow).open()
+                    onClicked:  settingsDialogFactory.open()
                 }
             }
+        }
+
+        QGCPopupDialogFactory {
+            id: settingsDialogFactory
+
+            dialogComponent: settingsDialogComponent
         }
 
         Component {

@@ -1,16 +1,3 @@
-/****************************************************************************
- *
- * (c) 2009-2024 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
- *
- * QGroundControl is licensed according to the terms in the file
- * COPYING.md in the root of the source code directory.
- *
- ****************************************************************************/
-
-
-/// @file
-///     @author Don Gagne <don@thegagnes.com>
-
 #include "GeoFenceController.h"
 #include "Vehicle.h"
 #include "ParameterManager.h"
@@ -585,36 +572,3 @@ bool GeoFenceController::isEmpty(void) const
     return _polygons.count() == 0 && _circles.count() == 0 && !_breachReturnPoint.isValid();
 
 }
-
-#ifdef QGC_UTM_ADAPTER
-void GeoFenceController::loadFlightPlanData()
-{
-    QJsonArray jsonPolygonArray;
-    QList<QGeoCoordinate> geoCoordinates ;
-
-    for (int i = 0; i < _polygons.count(); i++) {
-        QJsonObject jsonPolygon;
-        QGCFencePolygon* fencePolygon = _polygons.value<QGCFencePolygon*>(i);
-        fencePolygon->saveToJson(jsonPolygon);
-        jsonPolygonArray.append(jsonPolygon);
-    }
-    QJsonArray jsonArray = QJsonDocument::fromJson(QJsonDocument(jsonPolygonArray).toJson()).array();
-    QJsonObject jsonObject = jsonArray.at(0).toObject();
-    QJsonArray polygonArray = jsonObject.value("polygon").toArray();
-
-    for (int i = 0; i < polygonArray.size(); ++i) {
-        QJsonArray pointArray = polygonArray.at(i).toArray();
-        double latitude = pointArray.at(0).toDouble();
-        double longitude = pointArray.at(1).toDouble();
-        QGeoCoordinate geoCoordinate(latitude, longitude);
-        geoCoordinates.append(geoCoordinate);
-    }
-
-    // Append the first coordinate again to the end of the list
-    if (!geoCoordinates.isEmpty()) {
-        geoCoordinates.append(geoCoordinates.first());
-    }
-
-    emit polygonBoundarySent(geoCoordinates);
-}
-#endif

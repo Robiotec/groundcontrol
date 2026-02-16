@@ -1,13 +1,3 @@
-/****************************************************************************
- *
- * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
- *
- * QGroundControl is licensed according to the terms in the file
- * COPYING.md in the root of the source code directory.
- *
- ****************************************************************************/
-
-
 import QtQuick
 
 import QGroundControl
@@ -24,8 +14,8 @@ Item {
     property bool  _initialConnectComplete:   _activeVehicle ? _activeVehicle.initialConnectComplete : false
     property real  leftYAxisValue:            autoCenterThrottle ? height / 2 : height
     property var   calibration:               false
-    property var   uiTotalWidth
-    property var   uiRealX
+    property real  uiTotalWidth:           0
+    property real  uiRealX:                 0
 
     Timer {
         interval:   40  // 25Hz, same as real joystick rate

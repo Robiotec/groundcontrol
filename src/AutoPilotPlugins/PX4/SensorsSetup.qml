@@ -1,12 +1,3 @@
-/****************************************************************************
- *
- * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
- *
- * QGroundControl is licensed according to the terms in the file
- * COPYING.md in the root of the source code directory.
- *
- ****************************************************************************/
-
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Dialogs
@@ -158,14 +149,20 @@ Item {
         onMagCalComplete: {
             setOrientationsButton.visible               = orientationsButtonVisible()
             setOrientationsDialogShowBoardOrientation   = false
-            setOrientationsDialogComponent.createObject(mainWindow, { title: qsTr("Compass Calibration Complete"), showRebootVehicleButton: true }).open()
+            setOrientationsDialogFactory.open({ title: qsTr("Compass Calibration Complete"), showRebootVehicleButton: true })
         }
 
         onWaitingForCancelChanged: {
             if (controller.waitingForCancel) {
-                waitForCancelDialogComponent.createObject(mainWindow).open()
+                waitForCancelDialogFactory.open()
             }
         }
+    }
+
+    QGCPopupDialogFactory {
+        id: waitForCancelDialogFactory
+
+        dialogComponent: waitForCancelDialogComponent
     }
 
     Component {
@@ -186,6 +183,12 @@ Item {
                 }
             }
         }
+    }
+
+    QGCPopupDialogFactory {
+        id: preCalibrationDialogFactory
+
+        dialogComponent: preCalibrationDialogComponent
     }
 
     Component {
@@ -254,6 +257,12 @@ Item {
     }
 
     property bool setOrientationsDialogShowBoardOrientation:    true
+
+    QGCPopupDialogFactory {
+        id: setOrientationsDialogFactory
+
+        dialogComponent: setOrientationsDialogComponent
+    }
 
     Component {
         id: setOrientationsDialogComponent
@@ -340,7 +349,7 @@ Item {
                 onClicked: {
                     preCalibrationDialogType = "compass"
                     preCalibrationDialogHelp = compassHelp
-                    preCalibrationDialogComponent.createObject(mainWindow, { title: qsTr("Calibrate Compass") }).open()
+                    preCalibrationDialogFactory.open({ title: qsTr("Calibrate Compass") })
                 }
             }
 
@@ -354,7 +363,7 @@ Item {
                 onClicked: {
                     preCalibrationDialogType = "gyro"
                     preCalibrationDialogHelp = gyroHelp
-                    preCalibrationDialogComponent.createObject(mainWindow, { title: qsTr("Calibrate Gyro") }).open()
+                    preCalibrationDialogFactory.open({ title: qsTr("Calibrate Gyro") })
                 }
             }
 
@@ -368,7 +377,7 @@ Item {
                 onClicked: {
                     preCalibrationDialogType = "accel"
                     preCalibrationDialogHelp = accelHelp
-                    preCalibrationDialogComponent.createObject(mainWindow, { title: qsTr("Calibrate Accelerometer") }).open()
+                    preCalibrationDialogFactory.open({ title: qsTr("Calibrate Accelerometer") })
                 }
             }
 
@@ -383,7 +392,7 @@ Item {
                 onClicked: {
                     preCalibrationDialogType = "level"
                     preCalibrationDialogHelp = levelHelp
-                    preCalibrationDialogComponent.createObject(mainWindow, { title: qsTr("Level Horizon") }).open()
+                    preCalibrationDialogFactory.open({ title: qsTr("Level Horizon") })
                 }
             }
 
@@ -399,7 +408,7 @@ Item {
                 onClicked: {
                     preCalibrationDialogType = "airspeed"
                     preCalibrationDialogHelp = airspeedHelp
-                    preCalibrationDialogComponent.createObject(mainWindow, { title: qsTr("Calibrate Airspeed") }).open()
+                    preCalibrationDialogFactory.open({ title: qsTr("Calibrate Airspeed") })
                 }
             }
 
@@ -428,7 +437,7 @@ Item {
 
                 onClicked:  {
                     setOrientationsDialogShowBoardOrientation = true
-                    setOrientationsDialogComponent.createObject(mainWindow, { title: qsTr("Set Orientations"), showRebootVehicleButton: false }).open()
+                    setOrientationsDialogFactory.open({ title: qsTr("Set Orientations"), showRebootVehicleButton: false })
                 }
             }
         } // Column - Buttons

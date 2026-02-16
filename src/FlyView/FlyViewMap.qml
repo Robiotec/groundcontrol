@@ -1,12 +1,3 @@
-/****************************************************************************
- *
- * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
- *
- * QGroundControl is licensed according to the terms in the file
- * COPYING.md in the root of the source code directory.
- *
- ****************************************************************************/
-
 import QtQuick
 import QtQuick.Controls
 import QtLocation
@@ -617,6 +608,12 @@ FlightMap {
         }
     }
 
+    QGCPopupDialogFactory {
+        id: roiEditPositionDialogFactory
+
+        dialogComponent: roiEditPositionDialogComponent
+    }
+
     Component {
         id: roiEditPositionDialogComponent
 
@@ -653,7 +650,7 @@ FlightMap {
                         Layout.fillWidth:   true
                         text:               qsTr("Edit Position")
                         onClicked: {
-                            roiEditPositionDialogComponent.createObject(mainWindow, { showSetPositionFromVehicle: false }).open()
+                            roiEditPositionDialogFactory.open({ showSetPositionFromVehicle: false })
                             roiEditDropPanel.close()
                         }
                     }

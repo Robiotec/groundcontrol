@@ -1,12 +1,3 @@
-/****************************************************************************
- *
- * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
- *
- * QGroundControl is licensed according to the terms in the file
- * COPYING.md in the root of the source code directory.
- *
- ****************************************************************************/
-
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Dialogs
@@ -20,7 +11,6 @@ import QGroundControl.FlightMap
 import QGroundControl.Controls
 import QGroundControl.FactControls
 import QGroundControl.FlyView
-import QGroundControl.UTMSP
 
 Item {
     id: _root
@@ -45,15 +35,10 @@ Item {
     property var    _appSettings: QGroundControl.settingsManager.appSettings
     property var    _planViewSettings: QGroundControl.settingsManager.planViewSettings
     property bool   _promptForPlanUsageShowing: false
-    property bool   _utmspEnabled: QGroundControl.utmspSupported
-    property bool   _resetGeofencePolygon: false   //Reset the Geofence Polygon
-    property bool   _triggerSubmit
-    property bool   _resetRegisterFlightPlan
 
     readonly property int _layerMission: 1
     readonly property int _layerFence: 2
     readonly property int _layerRally: 3
-    readonly property int _layerUTMSP: 4
 
     readonly property string _armedVehicleUploadPrompt: qsTr("Vehicle is currently armed. Do you want to upload the mission to the vehicle?")
 
@@ -84,18 +69,6 @@ Item {
         planMasterController: _planMasterController
     }
 
-    Connections {
-        target: _appSettings ? _appSettings.defaultMissionItemAltitude : null
-        function onRawValueChanged() {
-            if (_visualItems.count > 1) {
-                mainWindow.showMessageDialog(qsTr("Apply new altitude"),
-                                             qsTr("You have changed the default altitude for mission items. Would you like to apply that altitude to all the items in the current mission?"),
-                                             Dialog.Yes | Dialog.No,
-                                             function() { _missionController.applyDefaultMissionAltitude() })
-            }
-        }
-    }
-
     PlanMasterController {
         id: planMasterController
         flyView: false
@@ -108,18 +81,18 @@ Item {
         onPromptForPlanUsageOnVehicleChange: {
             if (!_promptForPlanUsageShowing) {
                 _promptForPlanUsageShowing = true
-                promptForPlanUsageOnVehicleChangePopupComponent.createObject(mainWindow).open()
+                promptForPlanUsageOnVehicleChangePopupFactory.open()
             }
         }
 
         function waitingOnIncompleteDataMessage(save) {
             var saveOrUpload = save ? qsTr("Save") : qsTr("Upload")
-            mainWindow.showMessageDialog(qsTr("Unable to %1").arg(saveOrUpload), qsTr("Plan has incomplete items. Complete all items and %1 again.").arg(saveOrUpload))
+            QGroundControl.showMessageDialog(_root, qsTr("Unable to %1").arg(saveOrUpload), qsTr("Plan has incomplete items. Complete all items and %1 again.").arg(saveOrUpload))
         }
 
         function waitingOnTerrainDataMessage(save) {
             var saveOrUpload = save ? qsTr("Save") : qsTr("Upload")
-            mainWindow.showMessageDialog(qsTr("Unable to %1").arg(saveOrUpload), qsTr("Plan is waiting on terrain data from server for correct altitude values."))
+            QGroundControl.showMessageDialog(_root, qsTr("Unable to %1").arg(saveOrUpload), qsTr("Plan is waiting on terrain data from server for correct altitude values."))
         }
 
         function checkReadyForSaveUpload(save) {
@@ -140,9 +113,9 @@ Item {
             switch (_missionController.sendToVehiclePreCheck()) {
                 case MissionController.SendToVehiclePreCheckStateOk: sendToVehicle()
                     break
-                case MissionController.SendToVehiclePreCheckStateActiveMission: mainWindow.showMessageDialog(qsTr("Send To Vehicle"), qsTr("Current mission must be paused prior to uploading a new Plan"))
+                case MissionController.SendToVehiclePreCheckStateActiveMission: QGroundControl.showMessageDialog(_root, qsTr("Send To Vehicle"), qsTr("Current mission must be paused prior to uploading a new Plan"))
                     break
-                case MissionController.SendToVehiclePreCheckStateFirwmareVehicleMismatch: mainWindow.showMessageDialog(qsTr("Plan Upload"),
+                case MissionController.SendToVehiclePreCheckStateFirwmareVehicleMismatch: QGroundControl.showMessageDialog(_root, qsTr("Plan Upload"),
                                                  qsTr("This Plan was created for a different firmware or vehicle type than the firmware/vehicle type of vehicle you are uploading to. " +
                                                       "This can lead to errors or incorrect behavior. " +
                                                       "It is recommended to recreate the Plan for the correct firmware/vehicle type.\n\n" +
@@ -301,9 +274,6 @@ Item {
                 coordinate.latitude = coordinate.latitude.toFixed(_decimalPlaces)
                 coordinate.longitude = coordinate.longitude.toFixed(_decimalPlaces)
                 coordinate.altitude = coordinate.altitude.toFixed(_decimalPlaces)
-				if(_utmspEnabled){
-                	QGroundControl.utmspManager.utmspVehicle.updateLastCoordinates(coordinate.latitude, coordinate.longitude)
-                }
 
                 switch (_editingLayer) {
                 case _layerMission:
@@ -377,19 +347,6 @@ Item {
                 }
             }
 
-            // Incomplete segment lines
-            MapItemView {
-                model: _missionController.incompleteComplexItemLines
-
-                delegate: MapPolyline {
-                    path: [ object.coordinate1, object.coordinate2 ]
-                    line.width: 1
-                    line.color: "red"
-                    z: QGroundControl.zOrderWaypointLines
-                    opacity: _editingLayer == _layerMission ? 1 : editorMap._nonInteractiveOpacity
-                }
-            }
-
             // UI for splitting the current segment
             MapQuickItem {
                 id: splitSegmentItem
@@ -455,17 +412,6 @@ Item {
                 opacity: _editingLayer != _layerRally ? editorMap._nonInteractiveOpacity : 1
             }
 
-            UTMSPMapVisuals {
-                enabled: _utmspEnabled
-                map: editorMap
-                currentMissionItems: _visualItems
-                myGeoFenceController: _geoFenceController
-                interactive: _editingLayer == _layerUTMSP
-                homePosition: _missionController.plannedHomePosition
-                planView: true
-                opacity: _editingLayer != _layerUTMSP ? editorMap._nonInteractiveOpacity : 1
-                resetCheck: _resetGeofencePolygon
-            }
         }
 
         //-----------------------------------------------------------
@@ -500,7 +446,6 @@ Item {
                         visible: toolStrip._isMissionLayer && !_planMasterController.controllerVehicle.rover
                         onTriggered: {
                             insertTakeoffItemAfterCurrent()
-                            _triggerSubmit = true
                         }
                     },
                     ToolStripAction {
@@ -553,7 +498,7 @@ Item {
             anchors.top: parent.top
             anchors.bottom: parent.bottom
             anchors.right: parent.right
-            width: _utmspEnabled ? _rightPanelWidth + ScreenTools.defaultFontPixelWidth * 21.667 : _rightPanelWidth
+            width: _rightPanelWidth
             planMasterController: _planMasterController
             editorMap: editorMap
         }
@@ -706,6 +651,12 @@ Item {
                 }
             }
         } // Column
+    }
+
+    QGCPopupDialogFactory {
+        id: promptForPlanUsageOnVehicleChangePopupFactory
+
+        dialogComponent: promptForPlanUsageOnVehicleChangePopupComponent
     }
 
     Component {

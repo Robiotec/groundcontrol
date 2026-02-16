@@ -1,13 +1,3 @@
-/****************************************************************************
- *
- * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
- *
- * QGroundControl is licensed according to the terms in the file
- * COPYING.md in the root of the source code directory.
- *
- ****************************************************************************/
-
-
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Dialogs
@@ -124,8 +114,14 @@ SetupPage {
                     }
                 }
 
-                onShowFirmwareSelectDlg:    firmwareSelectDialogComponent.createObject(mainWindow).open()
+                onShowFirmwareSelectDlg:    firmwareSelectDialogFactory.open()
                 onError:                    statusTextArea.append(flashFailText)
+            }
+
+            QGCPopupDialogFactory {
+                id: firmwareSelectDialogFactory
+
+                dialogComponent: firmwareSelectDialogComponent
             }
 
             Component {
@@ -192,19 +188,19 @@ SetupPage {
                                 } else {
                                     if (controller.apmFirmwareNames.length === 0) {
                                         // Not ready yet, or no firmware available
-                                        mainWindow.showMessageDialog(firmwareSelectDialog.title, qsTr("Either firmware list is still downloading, or no firmware is available for current selection."))
+                                        QGroundControl.showMessageDialog(firmwarePage, firmwareSelectDialog.title, qsTr("Either firmware list is still downloading, or no firmware is available for current selection."))
                                         firmwareSelectDialog.preventClose = true
                                         return
                                     }
                                     if (ardupilotFirmwareSelectionCombo.currentIndex == -1) {
-                                        mainWindow.showMessageDialog(firmwareSelectDialog.title, qsTr("You must choose a board type."))
+                                        QGroundControl.showMessageDialog(firmwarePage, firmwareSelectDialog.title, qsTr("You must choose a board type."))
                                         firmwareSelectDialog.preventClose = true
                                         return
                                     }
 
                                     var firmwareUrl = controller.apmFirmwareUrls[ardupilotFirmwareSelectionCombo.currentIndex]
                                     if (firmwareUrl == "") {
-                                        mainWindow.showMessageDialog(firmwareSelectDialog.title, qsTr("No firmware was found for the current selection."))
+                                        QGroundControl.showMessageDialog(firmwarePage, firmwareSelectDialog.title, qsTr("No firmware was found for the current selection."))
                                         firmwareSelectDialog.preventClose = true
                                         return
                                     }
@@ -437,6 +433,7 @@ SetupPage {
                     color: qgcPal.windowShade
                 }
             }
+
         } // ColumnLayout
     } // Component
 } // SetupPage

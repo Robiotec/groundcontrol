@@ -18,7 +18,7 @@ default:
 # Install system dependencies (Debian/Ubuntu)
 deps:
     @echo "Installing dependencies (requires sudo)..."
-    sudo ./tools/setup/install-dependencies-debian.sh
+    python3 ./tools/setup/install_dependencies.py --platform debian
 
 # Initialize git submodules
 submodules:
@@ -69,15 +69,15 @@ lint:
 
 # Check code formatting (no changes)
 format:
-    ./tools/format-check.sh --check
+    python3 ./tools/analyze.py --tool clang-format
 
 # Format code (apply fixes)
 format-fix:
-    ./tools/format-check.sh
+    python3 ./tools/analyze.py --tool clang-format --fix
 
 # Run static analysis
 analyze:
-    ./tools/analyze.sh
+    python3 ./tools/analyze.py
 
 # Generate coverage report
 coverage:
@@ -112,10 +112,6 @@ info:
     @echo "Qt dir:      {{qt_dir}}"
     @echo "Build type:  {{build_type}}"
     @echo "Build dir:   {{build_dir}}"
-
-# Update copyright headers
-update-headers:
-    python3 ./tools/update-headers.py
 
 # Check dependency versions
 check-deps:

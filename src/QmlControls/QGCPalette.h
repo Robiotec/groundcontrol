@@ -1,12 +1,3 @@
-/****************************************************************************
- *
- * (c) 2009-2024 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
- *
- * QGroundControl is licensed according to the terms in the file
- * COPYING.md in the root of the source code directory.
- *
- ****************************************************************************/
-
 #pragma once
 
 #include <QtCore/QObject>
@@ -161,12 +152,6 @@ public:
     DEFINE_QGC_COLOR(groupBorder,                   setGroupBorder)
     DEFINE_QGC_COLOR(photoCaptureButtonColor,       setPhotoCaptureButtonColor)
     DEFINE_QGC_COLOR(videoCaptureButtonColor,       setVideoCaptureButtonColor)
-
-#ifdef QGC_UTM_ADAPTER
-    DEFINE_QGC_COLOR(switchUTMSP,                    setSwitchUTMSP)
-    DEFINE_QGC_COLOR(sliderUTMSP,                    setSliderUTMSP)
-    DEFINE_QGC_COLOR(successNotifyUTMSP,             setSuccessNotifyUTMSP)
-#endif
 
      QGCPalette(QObject* parent = nullptr);
     ~QGCPalette();

@@ -1,15 +1,6 @@
-/****************************************************************************
- *
- * (c) 2009-2024 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
- *
- * QGroundControl is licensed according to the terms in the file
- * COPYING.md in the root of the source code directory.
- *
- ****************************************************************************/
-
 #include "LinkManager.h"
-#include "DeviceInfo.h"
 #include "LogReplayLink.h"
+#include "QGCNetworkHelper.h"
 #include "MAVLinkProtocol.h"
 #include "MultiVehicleManager.h"
 #include "QGCApplication.h"
@@ -35,10 +26,6 @@
 
 #ifdef QT_DEBUG
 #include "MockLink.h"
-#endif
-
-#ifndef QGC_AIRLINK_DISABLED
-#include "AirLinkLink.h"
 #endif
 
 #ifdef QGC_ZEROCONF_ENABLED
@@ -141,11 +128,6 @@ bool LinkManager::createConnectedLink(SharedLinkConfigurationPtr &config)
 #ifdef QT_DEBUG
     case LinkConfiguration::TypeMock:
         link = std::make_shared<MockLink>(config);
-        break;
-#endif
-#ifndef QGC_AIRLINK_DISABLED
-    case LinkConfiguration::AirLink:
-        link = std::make_shared<AirLinkLink>(config);
         break;
 #endif
     case LinkConfiguration::TypeLast:
@@ -390,11 +372,6 @@ void LinkManager::loadLinkConfigurationList()
                 link = new MockConfiguration(name);
                 break;
 #endif
-#ifndef QGC_AIRLINK_DISABLED
-            case LinkConfiguration::AirLink:
-                link = new AirLinkConfiguration(name);
-                break;
-#endif
             case LinkConfiguration::TypeLast:
             default:
                 break;
@@ -602,9 +579,6 @@ QStringList LinkManager::linkTypeStrings() const
 #ifdef QT_DEBUG
     list += tr("Mock Link");
 #endif
-#ifndef QGC_AIRLINK_DISABLED
-    list += tr("AirLink");
-#endif
     list += tr("Log Replay");
 
     if (list.size() != static_cast<int>(LinkConfiguration::TypeLast)) {
@@ -706,7 +680,7 @@ void LinkManager::_removeConfiguration(const LinkConfiguration *config)
 
 bool LinkManager::isBluetoothAvailable()
 {
-    return QGCDeviceInfo::isBluetoothAvailable();
+    return QGCNetworkHelper::isBluetoothAvailable();
 }
 
 bool LinkManager::containsLink(const LinkInterface *link)

@@ -1,12 +1,3 @@
-/****************************************************************************
- *
- * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
- *
- * QGroundControl is licensed according to the terms in the file
- * COPYING.md in the root of the source code directory.
- *
- ****************************************************************************/
-
 import QtQml.Models
 
 import QGroundControl
@@ -25,6 +16,13 @@ ListModel {
         url: "qrc:/qml/QGroundControl/AppSettings/FlyViewSettings.qml"
         iconUrl: "qrc:/qmlimages/PaperPlane.svg"
         pageVisible: function() { return true }
+    }
+
+    ListElement {
+        name: qsTr("3D View")
+        url: "qrc:/qml/QGroundControl/Viewer3D/Viewer3DSettings.qml"
+        iconUrl: "qrc:/qml/QGroundControl/Viewer3D/City3DMapIcon.svg"
+        pageVisible: function() { return QGroundControl.settingsManager.viewer3DSettings.visible }
     }
 
     ListElement {

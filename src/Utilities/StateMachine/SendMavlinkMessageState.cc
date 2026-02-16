@@ -1,12 +1,3 @@
-/****************************************************************************
- *
- * (c) 2009-2024 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
- *
- * QGroundControl is licensed according to the terms in the file
- * COPYING.md in the root of the source code directory.
- *
- ****************************************************************************/
-
 #include "SendMavlinkMessageState.h"
 #include "MAVLinkProtocol.h"
 #include "MultiVehicleManager.h"
@@ -46,7 +37,7 @@ void SendMavlinkMessageState::_sendMessage()
     mavlink_message_t message{};
 
     const uint8_t systemId = MAVLinkProtocol::instance()->getSystemId();
-    const uint8_t componentId = MAVLinkProtocol::getComponentId();
+    const uint8_t componentId [[maybe_unused]] = MAVLinkProtocol::getComponentId();
     const uint8_t channel = sharedLink->mavlinkChannel();
 
     _encoder(systemId, channel, &message);

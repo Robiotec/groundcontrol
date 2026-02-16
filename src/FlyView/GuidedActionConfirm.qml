@@ -1,24 +1,14 @@
-/****************************************************************************
- *
- * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
- *
- * QGroundControl is licensed according to the terms in the file
- * COPYING.md in the root of the source code directory.
- *
- ****************************************************************************/
-
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
 import QGroundControl
 import QGroundControl.Controls
-import QGroundControl.UTMSP
 
 Item {
     id:         control
     width:      mainLayout.width
-    visible:    _utmspEnabled === true ? utmspSliderTrigger: false
+    visible:    false
 
     property var    guidedController
     property var    guidedValueSlider
@@ -34,10 +24,6 @@ Item {
 
     property real _margins:         2
     property bool _emergencyAction: action === guidedController.actionEmergencyStop
-
-    // Properties of UTM adapter
-    property bool   utmspSliderTrigger
-    property bool   _utmspEnabled:                       QGroundControl.utmspSupported
 
     Component.onCompleted: guidedController.confirmDialog = this
 
@@ -94,8 +80,7 @@ Item {
 
         QGCDelayButton {
             text:               control.title
-            enabled:            _utmspEnabled === true? utmspSliderTrigger : true
-            opacity:            if(_utmspEnabled){utmspSliderTrigger === true ? 1 : 0.5} else{1}
+            enabled:            true
 
             onActivated: {
                 control.visible = false
@@ -110,10 +95,6 @@ Item {
                     mapIndicator.actionConfirmed()
                     mapIndicator = undefined
                 }
-
-                UTMSPStateStorage.indicatorOnMissionStatus = true
-                UTMSPStateStorage.currentNotificationIndex = 7
-                UTMSPStateStorage.currentStateIndex = 3
             }
         }
 

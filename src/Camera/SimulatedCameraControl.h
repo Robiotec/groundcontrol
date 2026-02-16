@@ -1,12 +1,3 @@
-/****************************************************************************
- *
- * (c) 2009-2024 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
- *
- * QGroundControl is licensed according to the terms in the file
- * COPYING.md in the root of the source code directory.
- *
- ****************************************************************************/
-
 #pragma once
 
 #include <QtCore/QElapsedTimer>
@@ -106,8 +97,8 @@ public:
     void setFocusLevel(qreal /*level*/) override {}
     void setCameraMode(CameraMode mode) override;
     void setPhotoCaptureMode(PhotoCaptureMode mode) override;
-    void setPhotoLapse(qreal interval) override {}
-    void setPhotoLapseCount(int count) override {}
+    void setPhotoLapse(qreal /*interval*/) override {}
+    void setPhotoLapseCount(int /*count*/) override {}
 
     bool trackingEnabled() const override { return false; }
     void setTrackingEnabled(bool /*set*/) override {}

@@ -1,19 +1,3 @@
-/****************************************************************************
- *
- * (c) 2009-2024 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
- *
- * QGroundControl is licensed according to the terms in the file
- * COPYING.md in the root of the source code directory.
- *
- ****************************************************************************/
-
-/*!
- * @file
- *   @brief Camera Controller
- *   @author Gus Grubba <gus@auterion.com>
- *
- */
-
 #include "VehicleCameraControl.h"
 #include "QGCCameraIO.h"
 #include "QGCApplication.h"
@@ -22,8 +6,9 @@
 #include "VideoManager.h"
 #include "QGCCameraManager.h"
 #include "FTPManager.h"
-#include "QGCLZMA.h"
+#include "QGCCompression.h"
 #include "QGCCorePlugin.h"
+#include "QGCFileHelper.h"
 #include "Vehicle.h"
 #include "LinkInterface.h"
 #include "MAVLinkProtocol.h"
@@ -36,8 +21,9 @@
 #include <QtXml/QDomDocument>
 #include <QtXml/QDomNodeList>
 #include <QtQml/QQmlEngine>
-#include <QtNetwork/QNetworkProxy>
 #include <QtNetwork/QNetworkReply>
+
+#include "QGCNetworkHelper.h"
 
 //-----------------------------------------------------------------------------
 QGCCameraOptionExclusion::QGCCameraOptionExclusion(QObject* parent, QString param_, QString value_, QStringList exclusions_)
@@ -704,11 +690,12 @@ VehicleCameraControl::_mavCommandResult(int vehicleId, int component, int comman
                 break;
         }
     } else {
+        QString commandStr = MissionCommandTree::instance()->rawName(static_cast<MAV_CMD>(command));
         if ((result == MAV_RESULT_TEMPORARILY_REJECTED) || (result == MAV_RESULT_FAILED)) {
             if (result == MAV_RESULT_TEMPORARILY_REJECTED) {
-                qCDebug(CameraControlLog) << "Command temporarily rejected for" << command;
+                qCDebug(CameraControlLog) << "Command temporarily rejected (MAV_RESULT_TEMPORARILY_REJECTED) for" << commandStr;
             } else {
-                qCDebug(CameraControlLog) << "Command failed for" << command;
+                qCDebug(CameraControlLog) << "Command failed (MAV_RESULT_FAILED) for" << commandStr;
             }
             switch(command) {
                 case MAV_CMD_RESET_CAMERA_SETTINGS:
@@ -740,7 +727,7 @@ VehicleCameraControl::_mavCommandResult(int vehicleId, int component, int comman
                     break;
             }
         } else {
-            qCDebug(CameraControlLog) << "Bad response for" << MissionCommandTree::instance()->rawName(static_cast<MAV_CMD>(command)) << QGCMAVLink::mavResultToString(result);
+            qCDebug(CameraControlLog) << "Bad response for" << commandStr << QGCMAVLink::mavResultToString(result);
         }
     }
 }
@@ -927,11 +914,11 @@ VehicleCameraControl::_loadSettings(const QDomNodeList nodeList)
         QDomNodeList optionsRoot = optionElem.elementsByTagName(kOptions);
         if(optionsRoot.size()) {
             //-- Iterate options
-            QDomNode node = optionsRoot.item(0);
-            QDomElement elem = node.toElement();
-            QDomNodeList options = elem.elementsByTagName(kOption);
-            for(int i = 0; i < options.size(); i++) {
-                QDomNode option = options.item(i);
+            QDomNode optionsNode = optionsRoot.item(0);
+            QDomElement optionsElem = optionsNode.toElement();
+            QDomNodeList options = optionsElem.elementsByTagName(kOption);
+            for(int optionIndex = 0; optionIndex < options.size(); optionIndex++) {
+                QDomNode option = options.item(optionIndex);
                 QString optName;
                 QString optValue;
                 QVariant optVariant;
@@ -1100,25 +1087,25 @@ VehicleCameraControl::_handleLocalization(QByteArray& bytes)
     QDomElement elem = node.toElement();
     QDomNodeList locales = elem.elementsByTagName(kLocale);
     for(int i = 0; i < locales.size(); i++) {
-        QDomNode locale = locales.item(i);
+        QDomNode localeNode = locales.item(i);
         QString name;
-        if(!read_attribute(locale, kName, name)) {
+        if(!read_attribute(localeNode, kName, name)) {
             qWarning() << "Localization entry is missing its name attribute";
             continue;
         }
         // If we found a direct match, deal with it now
         if(localeName == name.toLower().replace("-", "_")) {
-            return _replaceLocaleStrings(locale, bytes);
+            return _replaceLocaleStrings(localeNode, bytes);
         }
     }
     //-- No direct match. Pick first matching language (if any)
     localeName = localeName.left(3);
     for(int i = 0; i < locales.size(); i++) {
-        QDomNode locale = locales.item(i);
+        QDomNode localeNode = locales.item(i);
         QString name;
-        read_attribute(locale, kName, name);
+        read_attribute(localeNode, kName, name);
         if(name.toLower().startsWith(localeName)) {
-            return _replaceLocaleStrings(locale, bytes);
+            return _replaceLocaleStrings(localeNode, bytes);
         }
     }
     //-- Could not find a language to use
@@ -1590,9 +1577,9 @@ VehicleCameraControl::handleCaptureStatus(const mavlink_camera_capture_status_t&
     //-- Time Lapse
     if(photoCaptureStatus() == PHOTO_CAPTURE_INTERVAL_IDLE || photoCaptureStatus() == PHOTO_CAPTURE_INTERVAL_IN_PROGRESS) {
         //-- Capture local image as well
-        QString photoPath = SettingsManager::instance()->appSettings()->savePath()->rawValue().toString() + QStringLiteral("/Photo");
-        QDir().mkpath(photoPath);
-        photoPath += "/" + QDateTime::currentDateTime().toString("yyyy-MM-dd_hh.mm.ss.zzz") + ".jpg";
+        const QString photoDir = SettingsManager::instance()->appSettings()->savePath()->rawValue().toString() + QStringLiteral("/Photo");
+        QGCFileHelper::ensureDirectoryExists(photoDir);
+        const QString photoPath = photoDir + "/" + QDateTime::currentDateTime().toString("yyyy-MM-dd_hh.mm.ss.zzz") + ".jpg";
         VideoManager::instance()->grabImage(photoPath);
     }
 }
@@ -2016,10 +2003,10 @@ VehicleCameraControl::_loadRanges(QDomNode option, const QString factName, QStri
             QStringList  optNames;
             QStringList  optValues;
             //-- Iterate options
-            for(int i = 0; i < rangeOptions.size(); i++) {
+            for(int rangeOptionIndex = 0; rangeOptionIndex < rangeOptions.size(); rangeOptionIndex++) {
                 QString optName;
                 QString optValue;
-                QDomNode roption = rangeOptions.item(i);
+                QDomNode roption = rangeOptions.item(rangeOptionIndex);
                 if(!read_attribute(roption, kName, optName)) {
                     qCritical() << QString("Malformed roption for parameter %1").arg(factName);
                     return false;
@@ -2145,10 +2132,7 @@ VehicleCameraControl::_httpRequest(const QString &url)
     if(!_netManager) {
         _netManager = new QNetworkAccessManager(this);
     }
-    QNetworkProxy savedProxy = _netManager->proxy();
-    QNetworkProxy tempProxy;
-    tempProxy.setType(QNetworkProxy::DefaultProxy);
-    _netManager->setProxy(tempProxy);
+    QGCNetworkHelper::configureProxy(_netManager);
     QNetworkRequest request(QUrl::fromUserInput(url));
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, true);
     QSslConfiguration conf = request.sslConfiguration();
@@ -2156,7 +2140,6 @@ VehicleCameraControl::_httpRequest(const QString &url)
     request.setSslConfiguration(conf);
     QNetworkReply* reply = _netManager->get(request);
     connect(reply, &QNetworkReply::finished,  this, &VehicleCameraControl::_downloadFinished);
-    _netManager->setProxy(savedProxy);
 }
 
 //-----------------------------------------------------------------------------
@@ -2190,16 +2173,9 @@ void VehicleCameraControl::_ftpDownloadComplete(const QString& fileName, const Q
 
     disconnect(_vehicle->ftpManager(), &FTPManager::downloadComplete, this, &VehicleCameraControl::_ftpDownloadComplete);
 
-    QString outputFileName = fileName;
-
-    if (fileName.endsWith(".lzma", Qt::CaseInsensitive) || fileName.endsWith(".xz", Qt::CaseInsensitive)) {
-        outputFileName = fileName.left(fileName.lastIndexOf("."));
-        if (QGCLZMA::inflateLZMAFile(fileName, outputFileName)) {
-            QFile(fileName).remove();
-        } else {
-            qCWarning(CameraControlLog) << "Inflate of compressed xml failed" << fileName;
-            outputFileName.clear();
-        }
+    QString outputFileName = QGCCompression::decompressIfNeeded(fileName);
+    if (outputFileName.isEmpty()) {
+        qCWarning(CameraControlLog) << "Inflate of compressed xml failed" << fileName;
     }
 
     QFile xmlFile(outputFileName);

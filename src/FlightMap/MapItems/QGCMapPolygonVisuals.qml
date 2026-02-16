@@ -1,12 +1,3 @@
-/****************************************************************************
- *
- * (c) 2009-2020 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
- *
- * QGroundControl is licensed according to the terms in the file
- * COPYING.md in the root of the source code directory.
- *
- ****************************************************************************/
-
 import QtQuick
 import QtQuick.Controls
 import QtLocation
@@ -266,13 +257,13 @@ Item {
         QGCMenuItem {
             text:           qsTr("Edit position..." )
             visible:        _circleMode
-            onTriggered:    editCenterPositionDialog.createObject(mainWindow).open()
+            onTriggered:    editCenterPositionDialogFactory.open()
         }
 
         QGCMenuItem {
             text:           qsTr("Edit position..." )
             visible:        !_circleMode && menu._editingVertexIndex >= 0
-            onTriggered:    editVertexPositionDialog.createObject(mainWindow).open()
+            onTriggered:    editVertexPositionDialogFactory.open()
         }
     }
 
@@ -514,6 +505,12 @@ Item {
         }
     }
 
+    QGCPopupDialogFactory {
+        id: editCenterPositionDialogFactory
+
+        dialogComponent: editCenterPositionDialog
+    }
+
     Component {
         id: editCenterPositionDialog
 
@@ -528,6 +525,12 @@ Item {
                 mapPolygon.centerDrag = false
             }
         }
+    }
+
+    QGCPopupDialogFactory {
+        id: editVertexPositionDialogFactory
+
+        dialogComponent: editVertexPositionDialog
     }
 
     Component {
@@ -636,15 +639,8 @@ Item {
             z:                  QGroundControl.zOrderMapItems + 1   // Over item indicators
 
             onClicked: (mouse) => {
-                if(_utmspEnabled){
-                    if (mouse.button === Qt.LeftButton) {
-                        mapPolygon.appendVertex(mapControl.toCoordinate(Qt.point(mouse.x, mouse.y), false /* clipToViewPort */))
-                    }
-                }
-                else{
-                    if (mouse.button === Qt.LeftButton && _root.interactive) {
-                        mapPolygon.appendVertex(mapControl.toCoordinate(Qt.point(mouse.x, mouse.y), false /* clipToViewPort */))
-                    }
+                if (mouse.button === Qt.LeftButton && _root.interactive) {
+                    mapPolygon.appendVertex(mapControl.toCoordinate(Qt.point(mouse.x, mouse.y), false /* clipToViewPort */))
                 }
             }
         }

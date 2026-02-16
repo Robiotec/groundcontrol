@@ -1,12 +1,3 @@
-/****************************************************************************
- *
- * (c) 2009-2024 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
- *
- * QGroundControl is licensed according to the terms in the file
- * COPYING.md in the root of the source code directory.
- *
- ****************************************************************************/
-
 #pragma once
 
 #include <QtCore/QLoggingCategory>
@@ -197,7 +188,7 @@ public:
     void setWriteOnly(bool bValue) { _writeOnly = bValue; }
     void setVolatileValue(bool bValue);
 
-    void setTranslators(Translator rawTranslator, Translator cookedTranslator);
+    void setTranslators(Translator rawTranslator_, Translator cookedTranslator_);
 
     /// Set the translators to the standard built in versions
     void setBuiltInTranslator();

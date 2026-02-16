@@ -6,17 +6,16 @@ This directory contains development tools, scripts, and configuration files for 
 
 ```
 tools/
-├── analyze.sh               # Static analysis (clang-tidy, cppcheck)
+├── analyze.py               # Static analysis (clang-tidy, cppcheck)
 ├── check-deps.sh            # Check for outdated dependencies
-├── check-sizes.py           # Report artifact sizes
 ├── clean.sh                 # Clean build artifacts and caches
 ├── common.sh                # Shared shell functions
 ├── coverage.sh              # Code coverage reports
 ├── format-check.sh          # Check/apply clang-format
 ├── generate-docs.sh         # Generate API docs (Doxygen)
 ├── param-docs.py            # Generate parameter documentation
-├── update-headers.py        # License header management
-├── ccache.conf              # ccache configuration
+├── configs/                 # Tool configuration files
+│   └── ccache.conf          # ccache configuration
 ├── analyzers/               # Static analysis scripts
 │   └── vehicle_null_check.py
 ├── coding-style/            # Code style examples
@@ -73,7 +72,7 @@ Both read configuration from `.github/build-config.json` for consistent versioni
 ./tools/format-check.sh
 
 # Run static analysis
-./tools/analyze.sh
+./tools/analyze.py
 
 # Clean build
 ./tools/clean.sh
@@ -92,15 +91,15 @@ Check or apply clang-format to source files.
 ./tools/format-check.sh src/Vehicle/   # Format specific directory
 ```
 
-### analyze.sh
+### analyze.py
 
 Run static analysis on source code.
 
 ```bash
-./tools/analyze.sh                     # Analyze changed files
-./tools/analyze.sh --all               # Analyze all files
-./tools/analyze.sh --tool cppcheck     # Use cppcheck instead of clang-tidy
-./tools/analyze.sh src/Vehicle/        # Analyze specific directory
+./tools/analyze.py                     # Analyze changed files
+./tools/analyze.py --all               # Analyze all files
+./tools/analyze.py --tool cppcheck     # Use cppcheck instead of clang-tidy
+./tools/analyze.py src/Vehicle/        # Analyze specific directory
 ```
 
 ### clean.sh
@@ -162,16 +161,6 @@ Check for outdated dependencies and submodules.
 ./tools/check-deps.sh --update     # Update submodules to latest
 ```
 
-### check-sizes.py
-
-Report artifact sizes. Used by CI to track build output sizes.
-
-```bash
-./tools/check-sizes.py build/              # Report local build artifacts
-./tools/check-sizes.py artifacts/ --json   # Output JSON (for CI)
-./tools/check-sizes.py --markdown          # Output markdown table
-```
-
 ### generate-docs.sh
 
 Generate API documentation using Doxygen.
@@ -203,8 +192,8 @@ Scripts in `setup/` help configure development environments. They read configura
 
 | Script | Platform | Description |
 |--------|----------|-------------|
-| `install-dependencies-debian.sh` | Linux | Install build dependencies via apt |
-| `install-dependencies-macos.sh` | macOS | Install dependencies via Homebrew + GStreamer |
+| `install_dependencies.py --platform debian` | Linux | Install build dependencies via apt |
+| `install_dependencies.py --platform macos` | macOS | Install dependencies via Homebrew + GStreamer |
 | `install-dependencies-windows.ps1` | Windows | Install GStreamer (Vulkan SDK optional) |
 | `install-qt-debian.sh` | Linux | Install Qt via aqtinstall |
 | `install-qt-macos.sh` | macOS | Install Qt via aqtinstall |
@@ -216,11 +205,11 @@ Scripts in `setup/` help configure development environments. They read configura
 
 ```bash
 # Linux: Install all dependencies
-sudo ./tools/setup/install-dependencies-debian.sh
+python3 ./tools/setup/install_dependencies.py --platform debian
 ./tools/setup/install-qt-debian.sh
 
 # macOS: Install all dependencies
-./tools/setup/install-dependencies-macos.sh
+python3 ./tools/setup/install_dependencies.py --platform macos
 ./tools/setup/install-qt-macos.sh
 
 # Windows (PowerShell as Admin):
@@ -390,23 +379,13 @@ See [translations/README.md](translations/README.md) for Crowdin integration.
 
 ## Code Quality Tools
 
-### update-headers.py
-
-Updates or validates license headers in source files.
-
-```bash
-python3 tools/update-headers.py              # Update headers
-python3 tools/update-headers.py --check      # Check only (for CI)
-python3 tools/update-headers.py --check src/ # Check specific directory
-```
-
 ### ccache.conf
 
 Configuration for [ccache](https://ccache.dev/) to speed up rebuilds. CMake automatically uses this when ccache is available.
 
 ```bash
 # Manual use:
-export CCACHE_CONFIGPATH=/path/to/qgroundcontrol/tools/ccache.conf
+export CCACHE_CONFIGPATH=/path/to/qgroundcontrol/tools/configs/ccache.conf
 ```
 
 ### coding-style/

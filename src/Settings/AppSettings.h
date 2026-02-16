@@ -1,15 +1,3 @@
-/***************_qgcTranslatorSourceCode***********************************************
- *
- * (c) 2009-2024 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
- *
- * QGroundControl is licensed according to the terms in the file
- * COPYING.md in the root of the source code directory.
- *
- ****************************************************************************/
-
-/// @file
-/// @brief Application Settings
-
 #pragma once
 
 #include <QtQmlIntegration/QtQmlIntegration>
@@ -59,8 +47,6 @@ public:
     DEFINE_SETTINGFACT(qLocaleLanguage)
     DEFINE_SETTINGFACT(disableAllPersistence)
     DEFINE_SETTINGFACT(firstRunPromptIdsShown)
-    DEFINE_SETTINGFACT(loginAirLink)
-    DEFINE_SETTINGFACT(passAirLink)
 
     Q_PROPERTY(QString missionSavePath          READ missionSavePath            NOTIFY savePathsChanged)
     Q_PROPERTY(QString parameterSavePath        READ parameterSavePath          NOTIFY savePathsChanged)

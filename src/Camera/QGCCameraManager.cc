@@ -1,12 +1,3 @@
-/****************************************************************************
- *
- * (c) 2009-2024 QGROUNDCONTROL PROJECT <http://www.qgroundcontrol.org>
- *
- * QGroundControl is licensed according to the terms in the file
- * COPYING.md in the root of the source code directory.
- *
- ****************************************************************************/
-
 #include "QGCCameraManager.h"
 #include "CameraMetaData.h"
 #include "FirmwarePlugin.h"
@@ -64,9 +55,9 @@ static void _requestFovOnZoom_Handler(
 /*===========================================================================*/
 
 QGCCameraManager::CameraStruct::CameraStruct(QGCCameraManager *manager_, uint8_t compID_, Vehicle *vehicle_)
-    : manager(manager_)
-    , compID(compID_)
+    : compID(compID_)
     , vehicle(vehicle_)
+    , manager(manager_)
 {
     qCDebug(CameraManagerLog) << this;
     backoffTimer.setSingleShot(true);
@@ -335,10 +326,6 @@ void QGCCameraManager::_handleCameraInfo(const mavlink_message_t& message)
     }
 
     _aspectByCompId.insert(message.compid, aspect);
-
-    const double sensorH = static_cast<double>(info.sensor_size_h);
-    const double sensorV = static_cast<double>(info.sensor_size_v);
-    const double focal   = static_cast<double>(info.focal_length);
 }
 
 void QGCCameraManager::_checkForLostCameras()
