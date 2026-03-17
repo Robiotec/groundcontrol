@@ -3,6 +3,7 @@
 #include "MAVLinkLib.h"
 
 #include <QtCore/QLoggingCategory>
+#include <QtCore/QMutex>
 
 Q_DECLARE_LOGGING_CATEGORY(MockLinkCameraLog)
 
@@ -12,7 +13,7 @@ class MockLink;
 ///
 /// Two cameras are provided:
 ///   Camera 1 (MAV_COMP_ID_CAMERA)  – full-featured: video capture, photo capture,
-///       mode switching, basic zoom, basic focus, video streaming
+///       mode switching, basic zoom, video streaming
 ///       (udp://127.0.0.1:5600, H.264 RTP, 1920×1080 @ 30 fps),
 ///       and image capture while in video mode.
 ///   Camera 2 (MAV_COMP_ID_CAMERA2) – photo-only: image capture only; video,
@@ -62,6 +63,7 @@ public:
                             bool captureVideo = true,
                             bool captureImage = true,
                             bool hasModes = true,
+                            bool hasVideoStream = true,
                             bool canCaptureImageInVideoMode = true,
                             bool canCaptureVideoInImageMode = false,
                             bool hasBasicZoom = true,
@@ -75,15 +77,19 @@ public:
     /// Update camera states (call from 10Hz tasks)
     void run10HzTasks();
 
+    /// Handle all incoming MAVLink messages for camera.
+    /// @return true if the message was handled by the camera
+    bool handleMavlinkMessage(const mavlink_message_t &msg);
+
+private:
     /// Handle a COMMAND_LONG that targets a camera component.
     /// @return true if the command was handled (ack already sent)
-    bool handleCameraCommand(const mavlink_command_long_t &request, uint8_t targetCompId);
+    bool _handleCameraCommand(const mavlink_command_long_t &request, uint8_t targetCompId);
 
     /// Handle a MAV_CMD_REQUEST_MESSAGE for camera-related message IDs.
     /// @return true if the message ID was handled
-    bool handleRequestMessage(const mavlink_command_long_t &request, uint8_t targetCompId);
+    bool _handleRequestMessage(const mavlink_command_long_t &request, uint8_t targetCompId);
 
-private:
     void _sendCameraInformation(uint8_t compId);
     void _sendCameraSettings(uint8_t compId);
     void _sendStorageInformation(uint8_t compId);
@@ -103,4 +109,9 @@ private:
 
     MockLink   *_mockLink = nullptr;
     CameraState _cameras[kNumCameras];           ///< Simulated cameras
+    /// Protects _cameras array from race conditions between:
+    ///   - Main thread: _handleCameraCommand() modifying camera state on MAVLink commands
+    ///   - Worker thread: run10HzTasks() reading capture status and updating capture counts
+    ///   Race example: Main sets singleShotStartMs while Worker checks it for completion
+    QMutex      _camerasMutex;
 };

@@ -47,46 +47,30 @@ inputs:
     required: false
     default: 'true'
 
-outputs:
-  build-dir:
-    description: 'Absolute path to build directory'
-    value: ${{ steps.configure.outputs.build_dir }}
-
 runs:
   using: composite
   steps:
     - name: Create build directory
       shell: bash
-      run: mkdir -p "${{ inputs.build-dir }}"
+      env:
+        INPUT_BUILD_DIR: ${{ inputs.build-dir }}
+      run: mkdir -p "${INPUT_BUILD_DIR}"
 
     - name: Configure
-      id: configure
       shell: bash
-      env:
-        INPUT_EXTRA_ARGS: ${{ inputs.extra-args }}
       run: |
-        args=(
-          -S "${{ inputs.source-dir }}"
-          -B "${{ inputs.build-dir }}"
-          -G "${{ inputs.generator }}"
-          -t "${{ inputs.build-type }}"
+        ARGS=(configure
+          --source-dir "${{ inputs.source-dir }}"
+          --build-dir "${{ inputs.build-dir }}"
+          --generator "${{ inputs.generator }}"
+          --build-type "${{ inputs.build-type }}"
         )
-
-        [[ "${{ inputs.testing }}" == "true" ]] && args+=(--testing)
-        [[ "${{ inputs.coverage }}" == "true" ]] && args+=(--coverage)
-        [[ "${{ inputs.stable }}" == "true" ]] && args+=(--stable)
-        [[ "${{ inputs.use-qt-cmake }}" != "true" ]] && args+=(--no-qt-cmake)
-
+        [[ "${{ inputs.testing }}" == "true" ]] && ARGS+=(--testing)
+        [[ "${{ inputs.coverage }}" == "true" ]] && ARGS+=(--coverage)
+        [[ "${{ inputs.stable }}" == "true" ]] && ARGS+=(--stable)
+        [[ "${{ inputs.use-qt-cmake }}" != "true" ]] && ARGS+=(--no-qt-cmake)
         if [[ "${{ inputs.unity-build }}" == "true" ]]; then
-          args+=(--unity --unity-batch "${{ inputs.unity-batch-size }}")
+          ARGS+=(--unity-build --unity-batch-size "${{ inputs.unity-batch-size }}")
         fi
-
-        # Add extra args if provided
-        if [[ -n "$INPUT_EXTRA_ARGS" ]]; then
-          read -ra extra <<< "$INPUT_EXTRA_ARGS"
-          args+=("${extra[@]}")
-        fi
-
-        python3 "${{ github.workspace }}/tools/configure.py" "${args[@]}"
-
-        echo "build_dir=$(cd "${{ inputs.build-dir }}" && pwd)" >> "$GITHUB_OUTPUT"
+        [[ -n "${{ inputs.extra-args }}" ]] && ARGS+=("--extra-args=${{ inputs.extra-args }}")
+        python3 "${GITHUB_WORKSPACE}/.github/scripts/cmake_helper.py" "${ARGS[@]}"

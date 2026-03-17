@@ -19,7 +19,7 @@ Item {
     property var    gimbals:                    gimbalController.gimbals
     property var    activeGimbal:               gimbalController.activeGimbal
     property var    multiGimbalSetup:           gimbalController.gimbals.count > 1
-    property bool   joystickButtonsAvailable:   activeVehicle ? joystickManager.joystickEnabledForVehicle(activeVehicle) : false
+    property bool   joystickButtonsAvailable:   activeVehicle ? joystickManager.activeJoystickEnabledForActiveVehicle : false
     property bool   showAzimuth:                QGroundControl.settingsManager.gimbalControllerSettings.toolbarIndicatorShowAzimuth.rawValue
 
     property var    margins:                    ScreenTools.defaultFontPixelWidth
@@ -30,15 +30,6 @@ Item {
     property var    settingsPanelVisible:       false
 
     property var _gimbalControllerSettings: QGroundControl.settingsManager.gimbalControllerSettings
-
-    function _updateJoystickEnabled() {
-        joystickButtonsAvailable = activeVehicle ? joystickManager.joystickEnabledForVehicle(activeVehicle) : false
-    }
-
-    Connections {
-        target: joystickManager
-        function onJoystickEnabledChanged() { _updateJoystickEnabled() }
-    }
 
     QGCPalette { id: qgcPal }
 
@@ -61,7 +52,7 @@ Item {
                 source:                  "/res/CameraGimbal.png"
                 fillMode:                Image.PreserveAspectFit
                 sourceSize.height:       height
-                color:                   qgcPal.windowTransparentText
+                color:                   qgcPal.text
 
             }
 
@@ -70,7 +61,7 @@ Item {
                 anchors.horizontalCenter: parent.horizontalCenter
                 font.pointSize:         ScreenTools.smallFontPointSize
                 text:                   activeGimbal ? activeGimbal.deviceId.rawValue : ""
-                color:                  qgcPal.windowTransparentText
+                color:                  qgcPal.text
                 visible:                multiGimbalSetup
             }
         }
@@ -89,7 +80,7 @@ Item {
                 text:                   activeGimbal && activeGimbal.retracted ?
                                             qsTr("Retracted") :
                                             (activeGimbal && activeGimbal.yawLock ? qsTr("Yaw locked") : qsTr("Yaw follow"))
-                color:                  qgcPal.windowTransparentText
+                color:                  qgcPal.text
                 Layout.columnSpan:      2
                 Layout.alignment:       Qt.AlignHCenter
             }
@@ -97,7 +88,7 @@ Item {
                 id:             pitchLabel
                 font.pointSize: ScreenTools.smallFontPointSize
                 text:           activeGimbal ? qsTr("P: ") + activeGimbal.absolutePitch.valueString : ""
-                color:          qgcPal.windowTransparentText
+                color:          qgcPal.text
             }
             QGCLabel {
                 id:             panLabel
@@ -107,7 +98,7 @@ Item {
                                         (qsTr("Az: ") + activeGimbal.absoluteYaw.valueString) :
                                         (qsTr("Y: ") + activeGimbal.bodyYaw.valueString)) :
                                     ""
-                color:          qgcPal.windowTransparentText
+                color:          qgcPal.text
             }
         }
     }

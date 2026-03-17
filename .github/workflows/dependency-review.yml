@@ -4,6 +4,15 @@ on:
   pull_request:
     paths:
       - 'package*.json'
+      - 'android/**'
+      - '**/*.gradle'
+      - '**/*.gradle.kts'
+      - 'requirements*.txt'
+      - '**/requirements*.txt'
+      - 'pyproject.toml'
+      - '**/pyproject.toml'
+      - 'setup.py'
+      - '**/setup.py'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -20,6 +29,11 @@ jobs:
     timeout-minutes: 10
 
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+
       - name: Checkout
         uses: actions/checkout@v6
 

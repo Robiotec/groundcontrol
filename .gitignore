@@ -26,7 +26,7 @@ tags
 # ------------------------------------------------------------------------------
 # Build System & CMake
 # ------------------------------------------------------------------------------
-build*/
+/build*/
 cmake-build-*/
 out/
 CMakeFiles
@@ -35,6 +35,7 @@ CMakeUserPresets.json
 compile_commands.json
 cpm_modules
 .cache/
+.ccache/
 
 # ------------------------------------------------------------------------------
 # Qt Generated Files
@@ -76,7 +77,6 @@ bin/mac
 *.dll
 
 # Build tool artifacts
-Makefile
 *.ninja
 .ninja_log
 build.ninja
@@ -115,6 +115,7 @@ ios/iOSForAppStore-Info.plist
 
 # Android
 android/local.properties
+.gradle/
 *.class
 
 # Linux
@@ -127,6 +128,7 @@ android/local.properties
 node_modules/
 docs/.vitepress/cache/
 docs/.vitepress/dist/
+docs/api/
 
 # Python
 *.pyc

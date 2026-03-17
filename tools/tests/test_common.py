@@ -1,15 +1,9 @@
 #!/usr/bin/env python3
 """Tests for common utilities."""
 
-import sys
 from pathlib import Path
 
 import pytest
-
-TOOLS_DIR = Path(__file__).parent.parent
-
-# Add tools to path for imports
-sys.path.insert(0, str(TOOLS_DIR))
 
 from common.patterns import (
     FACT_MEMBER_PATTERN,
@@ -113,6 +107,7 @@ class TestFileTraversal:
     def test_should_skip_path_cache(self):
         """Should skip cache directories."""
         assert should_skip_path(Path("/project/.cache/file.cpp"))
+        assert should_skip_path(Path("/project/.ccache/file.cpp"))
 
     def test_should_not_skip_src(self):
         """Should not skip src directories."""
@@ -125,6 +120,7 @@ class TestFileTraversal:
         assert "libs" in DEFAULT_SKIP_DIRS
         assert "node_modules" in DEFAULT_SKIP_DIRS
         assert ".git" in DEFAULT_SKIP_DIRS
+        assert ".ccache" in DEFAULT_SKIP_DIRS
 
 
 class TestLocatorIntegration:
