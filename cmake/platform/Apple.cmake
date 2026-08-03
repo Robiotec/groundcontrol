@@ -6,6 +6,11 @@ if(NOT APPLE)
     message(FATAL_ERROR "QGC: Invalid Platform: Apple.cmake included but platform is not Apple")
 endif()
 
+# .mm sources (e.g. GstIOSurfaceVideoBuffer.mm) need OBJCXX rules at root scope so
+# CMAKE_OBJCXX_COMPILE_OBJECT is populated for the QGC target. Done here unconditionally
+# for macOS + iOS rather than relying on a deferred enable_language inside Find modules.
+enable_language(OBJC OBJCXX)
+
 if(CMAKE_GENERATOR STREQUAL "Xcode" AND MACOS)
     # set(CMAKE_XCODE_ATTRIBUTE_DEVELOPMENT_TEAM
     # set(CMAKE_XCODE_ATTRIBUTE_CODE_SIGN_STYLE
@@ -26,7 +31,6 @@ cmake_path(GET QGC_MACOS_ICON_PATH FILENAME MACOSX_BUNDLE_ICON_FILE)
 
 set_target_properties(${CMAKE_PROJECT_NAME}
     PROPERTIES
-        MACOSX_BUNDLE TRUE
         MACOSX_BUNDLE_INFO_PLIST "${QGC_MACOS_PLIST_PATH}"
         MACOSX_BUNDLE_BUNDLE_NAME "${CMAKE_PROJECT_NAME}"
         MACOSX_BUNDLE_BUNDLE_VERSION "${CMAKE_PROJECT_VERSION}"
@@ -58,7 +62,6 @@ if(MACOS)
     message(STATUS "QGC: macOS platform configuration applied")
 elseif(IOS)
     # iOS-specific configuration
-    enable_language(OBJC)
 
     # set(CMAKE_XCODE_ATTRIBUTE_ARCHS
     # set(CMAKE_XCODE_ATTRIBUTE_ENABLE_BITCODE
@@ -81,7 +84,6 @@ elseif(IOS)
             XCODE_ATTRIBUTE_GCC_GENERATE_DEBUGGING_SYMBOLS "YES"
     )
 
-    # Add FFmpeg libraries for iOS if needed
     # set(QT_NO_FFMPEG_XCODE_EMBED_FRAMEWORKS_CODE_SIGN_ON_COPY ON)
     if(COMMAND qt_add_ios_ffmpeg_libraries)
         qt_add_ios_ffmpeg_libraries(${CMAKE_PROJECT_NAME})

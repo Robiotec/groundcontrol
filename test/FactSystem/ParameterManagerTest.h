@@ -15,12 +15,22 @@ private slots:
     void _requestListMissingParamFail();
     void _paramWriteNoAckRetry();
     void _paramWriteNoAckPermanent();
+    void _paramWriteUInt8();
+    void _paramWriteUInt16();
     void _paramReadFirstAttemptNoResponseRetry();
     void _paramReadNoResponse();
-    // void _FTPnoFailure();
-    // void _FTPChangeParam();
+    void _paramWriteParamError();
+    void _paramReadParamError();
+    void _FTPnoFailure();
+    void _FTPChangeParam();
+    void _bulkRefreshExactNamesAllSucceed();
+    void _bulkRefreshPrefixExpansion();
+    void _bulkRefreshUnknownNameSkipped();
+    void _bulkRefreshRetrySucceeds();
+    void _bulkRefreshAllRetriesExhausted();
 
 private:
     void _noFailureWorker(MockConfiguration::FailureMode_t failureMode);
-    void _setParamWithFailureMode(MockLink::ParamSetFailureMode_t failureMode, bool expectSuccess);
+    void _setParamWithFailureMode(MockLink::ParamSetFailureMode_t failureMode, bool expectSuccess,
+                                  const QString &paramName, MAV_AUTOPILOT autopilot);
 };

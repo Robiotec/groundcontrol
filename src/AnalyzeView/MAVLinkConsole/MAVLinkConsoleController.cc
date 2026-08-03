@@ -4,6 +4,7 @@
 #include "QGCLoggingCategory.h"
 #include "QGCPalette.h"
 #include "Vehicle.h"
+#include "VehicleLinkManager.h"
 
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
@@ -127,7 +128,7 @@ void MAVLinkConsoleController::_receiveData(uint8_t device, uint8_t flags, uint1
 void MAVLinkConsoleController::_sendSerialData(const QByteArray &data, bool close)
 {
     if (!_vehicle) {
-        qCWarning(MAVLinkConsoleControllerLog) << "Internal error";
+        qCWarning(MAVLinkConsoleControllerLog) << "_sendSerialData called with no active vehicle";
         return;
     }
 

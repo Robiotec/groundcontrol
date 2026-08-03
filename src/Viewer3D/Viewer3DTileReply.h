@@ -1,11 +1,10 @@
 #pragma once
 
-#include <QtCore/QByteArray>
-#include <QtCore/QLoggingCategory>
 #include <QtCore/QObject>
-#include <QtCore/QString>
+#include <QtCore/QPointer>
+#include <QtCore/qcontainerfwd.h>
 
-Q_DECLARE_LOGGING_CATEGORY(Viewer3DTileReplyLog)
+#include "Viewer3DTileInfo.h"
 
 struct QGCCacheTile;
 class QNetworkAccessManager;
@@ -16,14 +15,10 @@ class Viewer3DTileReply : public QObject
 {
     Q_OBJECT
 
+    friend class Viewer3DTileReplyTest;
+
 public:
-    struct TileInfo_t {
-        QByteArray data;
-        int x = 0;
-        int y = 0;
-        int zoomLevel = 0;
-        int mapId = 0;
-    };
+    using TileInfo_t = Viewer3DTileInfo;
 
     explicit Viewer3DTileReply(int zoomLevel, int tileX, int tileY, int mapId, const QString &mapType, QNetworkAccessManager *networkManager, QObject *parent = nullptr);
     ~Viewer3DTileReply();
@@ -47,7 +42,9 @@ private:
     static constexpr int kMaxRetries  = 5;
 
     QNetworkAccessManager *_networkManager = nullptr;
-    QNetworkReply *_reply = nullptr;
+    // QPointer: the reply is parented to the network manager and may be
+    // destroyed before us during ~Viewer3DTileQuery child cleanup.
+    QPointer<QNetworkReply> _reply;
     QTimer *_timeoutTimer = nullptr;
 
     TileInfo_t _tile;

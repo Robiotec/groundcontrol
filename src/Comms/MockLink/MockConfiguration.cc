@@ -14,10 +14,15 @@ MockConfiguration::MockConfiguration(const MockConfiguration *copy, QObject *par
     , _firmwareType(copy->firmwareType())
     , _vehicleType(copy->vehicleType())
     , _sendStatusText(copy->sendStatusText())
+    , _apmStartFreshParams(copy->apmStartFreshParams())
     , _enableCamera(copy->enableCamera())
     , _enableGimbal(copy->enableGimbal())
+    , _enableProximity(copy->enableProximity())
     , _failureMode(copy->failureMode())
     , _incrementVehicleId(copy->incrementVehicleId())
+    , _startArmed(copy->startArmed())
+    , _preloadMission(copy->preloadMission())
+    , _stayMavlinkV1(copy->stayMavlinkV1())
     , _cameraCaptureVideo(copy->cameraCaptureVideo())
     , _cameraCaptureImage(copy->cameraCaptureImage())
     , _cameraHasModes(copy->cameraHasModes())
@@ -27,6 +32,7 @@ MockConfiguration::MockConfiguration(const MockConfiguration *copy, QObject *par
     , _cameraHasBasicZoom(copy->cameraHasBasicZoom())
     , _cameraHasTrackingPoint(copy->cameraHasTrackingPoint())
     , _cameraHasTrackingRectangle(copy->cameraHasTrackingRectangle())
+    , _videoStreamType(copy->videoStreamTypeEnum())
     , _gimbalHasRollAxis(copy->gimbalHasRollAxis())
     , _gimbalHasPitchAxis(copy->gimbalHasPitchAxis())
     , _gimbalHasYawAxis(copy->gimbalHasYawAxis())
@@ -52,8 +58,10 @@ void MockConfiguration::copyFrom(const LinkConfiguration *source)
     setFirmwareType(mockLinkSource->firmwareType());
     setVehicleType(mockLinkSource->vehicleType());
     setSendStatusText(mockLinkSource->sendStatusText());
+    setApmStartFreshParams(mockLinkSource->apmStartFreshParams());
     setEnableCamera(mockLinkSource->enableCamera());
     setEnableGimbal(mockLinkSource->enableGimbal());
+    setEnableProximity(mockLinkSource->enableProximity());
     setIncrementVehicleId(mockLinkSource->incrementVehicleId());
     setFailureMode(mockLinkSource->failureMode());
     setCameraCaptureVideo(mockLinkSource->cameraCaptureVideo());
@@ -65,6 +73,7 @@ void MockConfiguration::copyFrom(const LinkConfiguration *source)
     setCameraHasBasicZoom(mockLinkSource->cameraHasBasicZoom());
     setCameraHasTrackingPoint(mockLinkSource->cameraHasTrackingPoint());
     setCameraHasTrackingRectangle(mockLinkSource->cameraHasTrackingRectangle());
+    setVideoStreamType(mockLinkSource->videoStreamType());
     setGimbalHasRollAxis(mockLinkSource->gimbalHasRollAxis());
     setGimbalHasPitchAxis(mockLinkSource->gimbalHasPitchAxis());
     setGimbalHasYawAxis(mockLinkSource->gimbalHasYawAxis());
@@ -72,6 +81,9 @@ void MockConfiguration::copyFrom(const LinkConfiguration *source)
     setGimbalHasYawLock(mockLinkSource->gimbalHasYawLock());
     setGimbalHasRetract(mockLinkSource->gimbalHasRetract());
     setGimbalHasNeutral(mockLinkSource->gimbalHasNeutral());
+    setStartArmed(mockLinkSource->startArmed());
+    setPreloadMission(mockLinkSource->preloadMission());
+    setStayMavlinkV1(mockLinkSource->stayMavlinkV1());
 }
 
 void MockConfiguration::loadSettings(QSettings &settings, const QString &root)
@@ -81,8 +93,10 @@ void MockConfiguration::loadSettings(QSettings &settings, const QString &root)
     setFirmwareType(static_cast<MAV_AUTOPILOT>(settings.value(_firmwareTypeKey, static_cast<int>(MAV_AUTOPILOT_PX4)).toInt()));
     setVehicleType(static_cast<MAV_TYPE>(settings.value(_vehicleTypeKey, static_cast<int>(MAV_TYPE_QUADROTOR)).toInt()));
     setSendStatusText(settings.value(_sendStatusTextKey, false).toBool());
+    setApmStartFreshParams(settings.value(_apmStartFreshParamsKey, false).toBool());
     setEnableCamera(settings.value(_enableCameraKey, false).toBool());
     setEnableGimbal(settings.value(_enableGimbalKey, false).toBool());
+    setEnableProximity(settings.value(_enableProximityKey, false).toBool());
     setIncrementVehicleId(settings.value(_incrementVehicleIdKey, true).toBool());
     setFailureMode(static_cast<FailureMode_t>(settings.value(_failureModeKey, static_cast<int>(FailNone)).toInt()));
     setCameraCaptureVideo(settings.value(_cameraCaptureVideoKey, true).toBool());
@@ -92,8 +106,9 @@ void MockConfiguration::loadSettings(QSettings &settings, const QString &root)
     setCameraCanCaptureImageInVideoMode(settings.value(_cameraCanCaptureImageInVideoModeKey, true).toBool());
     setCameraCanCaptureVideoInImageMode(settings.value(_cameraCanCaptureVideoInImageModeKey, false).toBool());
     setCameraHasBasicZoom(settings.value(_cameraHasBasicZoomKey, true).toBool());
-    setCameraHasTrackingPoint(settings.value(_cameraHasTrackingPointKey, false).toBool());
-    setCameraHasTrackingRectangle(settings.value(_cameraHasTrackingRectangleKey, false).toBool());
+    setCameraHasTrackingPoint(settings.value(_cameraHasTrackingPointKey, true).toBool());
+    setCameraHasTrackingRectangle(settings.value(_cameraHasTrackingRectangleKey, true).toBool());
+    setVideoStreamType(settings.value(_videoStreamTypeKey, static_cast<int>(VideoStreamNone)).toInt());
     setGimbalHasRollAxis(settings.value(_gimbalHasRollAxisKey, true).toBool());
     setGimbalHasPitchAxis(settings.value(_gimbalHasPitchAxisKey, true).toBool());
     setGimbalHasYawAxis(settings.value(_gimbalHasYawAxisKey, true).toBool());
@@ -112,8 +127,10 @@ void MockConfiguration::saveSettings(QSettings &settings, const QString &root) c
     settings.setValue(_firmwareTypeKey, firmwareType());
     settings.setValue(_vehicleTypeKey, vehicleType());
     settings.setValue(_sendStatusTextKey, sendStatusText());
+    settings.setValue(_apmStartFreshParamsKey, apmStartFreshParams());
     settings.setValue(_enableCameraKey, enableCamera());
     settings.setValue(_enableGimbalKey, enableGimbal());
+    settings.setValue(_enableProximityKey, enableProximity());
     settings.setValue(_incrementVehicleIdKey, incrementVehicleId());
     settings.setValue(_failureModeKey, failureMode());
     settings.setValue(_cameraCaptureVideoKey, cameraCaptureVideo());
@@ -125,6 +142,7 @@ void MockConfiguration::saveSettings(QSettings &settings, const QString &root) c
     settings.setValue(_cameraHasBasicZoomKey, cameraHasBasicZoom());
     settings.setValue(_cameraHasTrackingPointKey, cameraHasTrackingPoint());
     settings.setValue(_cameraHasTrackingRectangleKey, cameraHasTrackingRectangle());
+    settings.setValue(_videoStreamTypeKey, videoStreamType());
     settings.setValue(_gimbalHasRollAxisKey, gimbalHasRollAxis());
     settings.setValue(_gimbalHasPitchAxisKey, gimbalHasPitchAxis());
     settings.setValue(_gimbalHasYawAxisKey, gimbalHasYawAxis());

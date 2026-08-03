@@ -10,13 +10,12 @@
 #pragma once
 
 #include <QtCore/QAbstractItemModel>
-#include <QtCore/QLoggingCategory>
 #include <QtQmlIntegration/QtQmlIntegration>
 
-Q_DECLARE_LOGGING_CATEGORY(ObjectItemModelBaseLog)
-
-/// Common base for QObject*-based item models (flat lists and trees).
+/// \brief Common base for QObject*-based item models (flat lists and trees).
+///
 /// Provides: dirty tracking, depth-counted begin/endResetModel, shared role constants, roleNames.
+///
 class ObjectItemModelBase : public QAbstractItemModel
 {
     Q_OBJECT

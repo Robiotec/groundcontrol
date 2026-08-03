@@ -7,10 +7,6 @@
 #include "CameraCalc.h"
 #include "TerrainQuery.h"
 
-#include <QtCore/QLoggingCategory>
-
-Q_DECLARE_LOGGING_CATEGORY(TransectStyleComplexItemLog)
-
 class PlanMasterController;
 
 class TransectStyleComplexItem : public ComplexMissionItem
@@ -88,7 +84,7 @@ public:
     double              specifiedFlightSpeed        (void) final { return std::numeric_limits<double>::quiet_NaN(); }
     double              specifiedGimbalYaw          (void) final { return std::numeric_limits<double>::quiet_NaN(); }
     double              specifiedGimbalPitch        (void) final { return std::numeric_limits<double>::quiet_NaN(); }
-    void                setMissionFlightStatus      (MissionController::MissionFlightStatus_t& missionFlightStatus) final;
+    void                setMissionFlightStatus      (MissionFlightStatus_t& missionFlightStatus) final;
     ReadyForSaveState   readyForSaveState         (void) const override;
     QString             commandDescription          (void) const override { return tr("Transect"); }
     QString             commandName                 (void) const override { return tr("Transect"); }
@@ -111,6 +107,8 @@ public:
     static constexpr const char* terrainAdjustToleranceName            = "TerrainAdjustTolerance";
     static constexpr const char* terrainAdjustMaxClimbRateName         = "TerrainAdjustMaxClimbRate";
     static constexpr const char* terrainAdjustMaxDescentRateName       = "TerrainAdjustMaxDescentRate";
+
+    static constexpr int maxTransectCount = 1000; ///< Maximum number of transects allowed; spacing is raised to enforce this limit
 
 signals:
     void cameraShotsChanged             (void);
@@ -204,8 +202,6 @@ protected:
 
     static constexpr int _terrainQueryTimeoutMsecs=     1000;
     static constexpr int _hoverAndCaptureDelaySeconds = 4;
-    static constexpr double _minimumTransectSpacingMeters = 0.3;
-    static constexpr double _forceLargeTransectSpacingMeters = 100000;
 
 private slots:
     void _reallyQueryTransectsPathHeightInfo        (void);

@@ -1,9 +1,12 @@
 #include "OsmParser.h"
 
+#include "Fact.h"
 #include "OsmParserThread.h"
 #include "QGCLoggingCategory.h"
 #include "SettingsManager.h"
 #include "Viewer3DSettings.h"
+
+#include <QtCore/QThread>
 
 #include <mapbox/earcut.hpp>
 
@@ -69,7 +72,10 @@ void OsmParser::_onOsmParserFinished(bool isValid)
 void OsmParser::parseOsmFile(const QString &filePath)
 {
     _gpsRefSet = false;
-    _mapLoadedFlag = false;
+    if (_mapLoadedFlag) {
+        _mapLoadedFlag = false;
+        emit mapChanged();
+    }
     resetGpsRef();
 
     _osmParserWorker->start(filePath);

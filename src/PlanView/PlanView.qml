@@ -11,6 +11,7 @@ import QGroundControl.FlightMap
 import QGroundControl.Controls
 import QGroundControl.FactControls
 import QGroundControl.FlyView
+import QGroundControl.Geo
 import QGroundControl.Toolbar
 
 Item {
@@ -26,24 +27,30 @@ Item {
     property var    _geoFenceController: _planMasterController.geoFenceController
     property var    _rallyPointController: _planMasterController.rallyPointController
     property var    _visualItems: _missionController.visualItems
-    property bool   _singleComplexItem: _missionController.complexMissionItemNames.length === 1
+    property bool   _singleComplexItem: _missionController.complexMissionItems.length === 1
     property int    _editingLayer: _layerMission
     property var    _appSettings: QGroundControl.settingsManager.appSettings
     property var    _planViewSettings: QGroundControl.settingsManager.planViewSettings
     property bool   _promptForPlanUsageShowing: false
     property bool   _addROIOnClick: false
     property bool   _addWaypointOnClick: false
-    property bool   _homeTrackingMapCenter: true
-    property bool   _updatingHomeFromMapCenter: false
 
-    readonly property int _layerMission: 1
-    readonly property int _layerFence: 2
-    readonly property int _layerRally: 3
+    readonly property int _layerMission: PlanEditLayers.layerMission
+    readonly property int _layerFence: PlanEditLayers.layerFence
+    readonly property int _layerRally: PlanEditLayers.layerRally
 
     onVisibleChanged: {
         if(visible) {
             editorMap.zoomLevel = QGroundControl.flightMapZoom
             editorMap.center    = QGroundControl.flightMapPosition
+        }
+    }
+
+    Connections {
+        target: planToolBar
+        function onToolbarButtonClicked() {
+            _addWaypointOnClick = false
+            _addROIOnClick = false
         }
     }
 
@@ -162,31 +169,6 @@ Item {
         }
     }
 
-    // Stop tracking map center when the home position is changed externally (e.g. drag, file load)
-    Connections {
-        target: _visualItems.count > 0 ? _visualItems.get(0) : null
-        function onCoordinateChanged() {
-            if (!_updatingHomeFromMapCenter && !_planMasterController.containsItems) {
-                _homeTrackingMapCenter = false
-            }
-        }
-    }
-
-    // Resume tracking when the plan becomes empty again
-    Connections {
-        target: _planMasterController
-        function onContainsItemsChanged() {
-            if (!_planMasterController.containsItems) {
-                _homeTrackingMapCenter = true
-                if (_visualItems.count > 0) {
-                    _updatingHomeFromMapCenter = true
-                    _visualItems.get(0).coordinate = editorMap.center
-                    _updatingHomeFromMapCenter = false
-                }
-            }
-        }
-    }
-
     function insertSimpleItemAfterCurrent(coordinate) {
         var nextIndex = _missionController.currentPlanViewVIIndex + 1
         _missionController.insertSimpleMissionItem(coordinate, nextIndex, true /* makeCurrentItem */)
@@ -257,6 +239,7 @@ Item {
 
         FlightMap {
             id: editorMap
+            objectName: "planView_map"
             anchors.fill: parent
             mapName: "MissionEditor"
             allowGCSLocationCenter: true
@@ -281,11 +264,6 @@ Item {
             }
             onCenterChanged: {
                 QGroundControl.flightMapPosition = editorMap.center
-                if (_homeTrackingMapCenter && !_planMasterController.containsItems && _visualItems.count > 0) {
-                    _updatingHomeFromMapCenter = true
-                    _visualItems.get(0).coordinate = editorMap.center
-                    _updatingHomeFromMapCenter = false
-                }
             }
 
             onMapClicked: (mouse) => {
@@ -306,7 +284,9 @@ Item {
 
                 switch (_editingLayer) {
                 case _layerMission:
-                    if (_addROIOnClick) {
+                    if (_planMasterController.showCreateFromTemplate) {
+                        _missionController.setHomePosition(coordinate)
+                    } else if (_addROIOnClick) {
                         _addROIOnClick = false
                         if (_missionController.isROIActive) {
                             var pos = Qt.point(mouse.x, mouse.y)
@@ -409,6 +389,7 @@ Item {
             }
 
             GeoFenceMapVisuals {
+                objectName: "planView_geoFenceMapVisuals"
                 map: editorMap
                 myGeoFenceController: _geoFenceController
                 interactive: _editingLayer == _layerFence
@@ -418,6 +399,7 @@ Item {
             }
 
             RallyPointMapVisuals {
+                objectName: "planView_rallyPointMapVisuals"
                 map: editorMap
                 myRallyPointController: _rallyPointController
                 interactive: _editingLayer == _layerRally
@@ -456,6 +438,7 @@ Item {
                 id: toolStripActionList
                 model: [
                     ToolStripAction {
+                        objectName: "planToolStrip_takeoffButton"
                         text: qsTr("Takeoff")
                         iconSource: "/res/takeoff.svg"
                         enabled: _missionController.isInsertTakeoffValid
@@ -465,34 +448,54 @@ Item {
                         }
                     },
                     ToolStripAction {
-                        text: _singleComplexItem ? _missionController.complexMissionItemNames[0] : qsTr("Pattern")
+                        objectName: "planToolStrip_patternButton"
+                        text: _singleComplexItem ? _missionController.complexMissionItems[0].translatedName : qsTr("Pattern")
                         iconSource: "/qmlimages/MapDrawShape.svg"
                         enabled: _missionController.flyThroughCommandsAllowed
                         visible: toolStrip._isMissionLayer
                         dropPanelComponent: _singleComplexItem ? undefined : patternDropPanel
                         onTriggered: {
                             if (_singleComplexItem) {
-                                insertComplexItemAfterCurrent(_missionController.complexMissionItemNames[0])
+                                insertComplexItemAfterCurrent(_missionController.complexMissionItems[0].canonicalName)
                             }
                         }
                     },
                     ToolStripAction {
                         id: waypointButton
+                        objectName: "planToolStrip_waypointButton"
                         text: qsTr("Waypoint")
                         iconSource: "/res/waypoint.svg"
+                        enabled: _missionController.flyThroughCommandsAllowed
                         visible: toolStrip._isMissionLayer
                         checkable: true
-                        onTriggered: { _addWaypointOnClick = !_addWaypointOnClick; if (_addWaypointOnClick) _addROIOnClick = false }
+                        onTriggered: {
+                            _addWaypointOnClick = !_addWaypointOnClick
+                            if (_addWaypointOnClick) {
+                                _addROIOnClick = false
+                                // Arming an insert tool leaves template-creation mode, otherwise
+                                // map clicks keep moving the home position instead of inserting
+                                _planMasterController.userSelectedManualCreation = true
+                            }
+                        }
                     },
                     ToolStripAction {
                         id: roiButton
-                        text: qsTr("ROI")
+                        objectName: "planToolStrip_roiButton"
+                        text: _missionController.isROIActive ? qsTr("Cancel ROI") : qsTr("ROI")
                         iconSource: "/qmlimages/roi.svg"
+                        enabled: _missionController.isInsertROIValid
                         visible: toolStrip._isMissionLayer && _planMasterController.controllerVehicle.supports.roiMode
                         checkable: true
-                        onTriggered: { _addROIOnClick = !_addROIOnClick; if (_addROIOnClick) _addWaypointOnClick = false }
+                        onTriggered: {
+                            _addROIOnClick = !_addROIOnClick
+                            if (_addROIOnClick) {
+                                _addWaypointOnClick = false
+                                _planMasterController.userSelectedManualCreation = true
+                            }
+                        }
                     },
                     ToolStripAction {
+                        objectName: "planToolStrip_landButton"
                         text: _planMasterController.controllerVehicle.multiRotor
                                     ? qsTr("Return")
                                     : _missionController.isInsertLandValid && _missionController.hasLandItem
@@ -539,6 +542,7 @@ Item {
         // Layer switching icons — only active icon visible; click to expand choices leftward
         Item {
             id:                     layerSwitcher
+            objectName:             "planView_layerSwitcher"
             anchors.right:          rightPanel.left
             anchors.rightMargin:    _toolsMargin
             anchors.top:            parent.top
@@ -546,16 +550,11 @@ Item {
             width:                  layerRow.width
             height:                 _layerButtonSize
             z:                      QGroundControl.zOrderWidgets
+            visible:                !_planMasterController.showCreateFromTemplate
 
             property bool   expanded: false
             property real   _layerButtonSize: ScreenTools.defaultFontPixelHeight * 2.0
             property real   _spacing: ScreenTools.defaultFontPixelHeight * 0.25
-
-            readonly property var _layers: [
-                { layer: _layerMission, icon: "/res/waypoint.svg",      nodeType: "missionGroup" },
-                { layer: _layerFence,   icon: "/res/GeoFence.svg",      nodeType: "fenceGroup" },
-                { layer: _layerRally,   icon: "/res/RallyPoint.svg",    nodeType: "rallyGroup" }
-            ]
 
             Timer {
                 id: collapseTimer
@@ -587,6 +586,7 @@ Item {
 
                 // Active layer button (always visible)
                 Rectangle {
+                    objectName: "layerSwitcher_activeButton"
                     width:  layerSwitcher._layerButtonSize
                     height: width
                     radius: ScreenTools.defaultBorderRadius
@@ -596,7 +596,7 @@ Item {
                         anchors.centerIn:   parent
                         width:              parent.width * 0.6
                         height:             width
-                        source:             layerSwitcher._layers.find(l => l.layer === _editingLayer)?.icon ?? "/res/waypoint.svg"
+                        source:             PlanEditLayers.layerInfos.find(l => l.layer === _editingLayer)?.icon ?? "/res/waypoint.svg"
                         color:              QGroundControl.globalPalette.buttonHighlightText
                     }
 
@@ -608,12 +608,13 @@ Item {
 
                 // Choice buttons (only layers that are NOT the current one)
                 Repeater {
-                    model: layerSwitcher._layers.filter(l => l.layer !== _editingLayer)
+                    model: PlanEditLayers.layerInfos.filter(l => l.layer !== _editingLayer)
 
                     Rectangle {
                         required property var modelData
-                        width:   layerSwitcher._layerButtonSize
-                        height:  width
+                        objectName: "layerSwitcher_choice_" + modelData.nodeType
+                        width:   choiceRow.implicitWidth + layerSwitcher._spacing * 2
+                        height:  layerSwitcher._layerButtonSize
                         radius:  ScreenTools.defaultBorderRadius
                         color:   QGroundControl.globalPalette.button
                         visible: opacity > 0
@@ -621,12 +622,24 @@ Item {
 
                         Behavior on opacity { NumberAnimation { duration: 150 } }
 
-                        QGCColoredImage {
-                            anchors.centerIn:   parent
-                            width:              parent.width * 0.6
-                            height:             width
-                            source:             modelData.icon
-                            color:              QGroundControl.globalPalette.buttonText
+                        Row {
+                            id:                     choiceRow
+                            anchors.centerIn:       parent
+                            spacing:                layerSwitcher._spacing
+
+                            QGCColoredImage {
+                                anchors.verticalCenter: parent.verticalCenter
+                                width:                  layerSwitcher._layerButtonSize * 0.6
+                                height:                 width
+                                source:                 modelData.icon
+                                color:                  QGroundControl.globalPalette.buttonText
+                            }
+
+                            QGCLabel {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text:                   modelData.name
+                                color:                  QGroundControl.globalPalette.buttonText
+                            }
                         }
 
                         QGCMouseArea {
@@ -773,14 +786,14 @@ Item {
             QGCLabel { text: qsTr("Create complex pattern:") }
 
             Repeater {
-                model: _missionController.complexMissionItemNames
+                model: _missionController.complexMissionItems
 
                 QGCButton {
-                    text: modelData
+                    text: modelData.translatedName
                     Layout.fillWidth: true
 
                     onClicked: {
-                        insertComplexItemAfterCurrent(modelData)
+                        insertComplexItemAfterCurrent(modelData.canonicalName)
                         dropPanel.hide()
                     }
                 }

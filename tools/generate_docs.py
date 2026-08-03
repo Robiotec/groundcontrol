@@ -14,7 +14,9 @@ from _bootstrap import ensure_tools_dir
 
 ensure_tools_dir(__file__)
 
+from common import find_repo_root
 from common.logging import log_error, log_info, log_ok, log_warn
+from common.opener import open_in_default_app
 
 DEFAULT_DOXYFILE = """# Doxyfile for QGroundControl
 
@@ -44,6 +46,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("-c", "--clean", action="store_true", help="Clean generated docs")
     parser.add_argument("--output-dir", default="docs/api", help="Output directory (default: docs/api)")
     parser.add_argument("--doxyfile", default="Doxyfile", help="Path to Doxyfile (default: Doxyfile)")
+    parser.add_argument("--check-deps", action="store_true", help="Check required tools, then exit")
     return parser.parse_args(argv)
 
 
@@ -116,16 +119,20 @@ def open_docs(output_dir: Path) -> None:
         raise FileNotFoundError(f"Documentation not found: {index}")
 
     log_info("Opening documentation...")
-    opener = shutil.which("xdg-open") or shutil.which("open")
-    if opener is None:
+    if not open_in_default_app(index):
         raise RuntimeError(f"Could not find a browser opener. Docs at: {index}")
-    subprocess.run([opener, str(index)], check=False)
 
 
 def main(argv: list[str] | None = None) -> int:
     """Run the requested documentation workflow."""
     args = parse_args(argv)
-    repo_root = Path(__file__).resolve().parent.parent
+
+    if args.check_deps:
+        from common.deps import check_and_report
+        check_and_report(["doxygen"])
+        return 0
+
+    repo_root = find_repo_root(Path(__file__))
     output_dir = Path(args.output_dir)
     doxyfile_path = Path(args.doxyfile)
     if not output_dir.is_absolute():

@@ -1,12 +1,8 @@
 #pragma once
 
-#include <QtCore/QLoggingCategory>
-
 #include "TransectStyleComplexItem.h"
 #include "SettingsFact.h"
 #include "QGCMapPolyline.h"
-
-Q_DECLARE_LOGGING_CATEGORY(CorridorScanComplexItemLog)
 
 class CorridorScanComplexItem : public TransectStyleComplexItem
 {
@@ -36,7 +32,7 @@ public:
     Q_INVOKABLE void rotateEntryPoint(void);
 
     // Overrides from TransectStyleComplexItem
-    QString patternName         (void) const final { return name; }
+    QString patternName         (void) const final { return tr(canonicalName); }
     void    save                (QJsonArray&  planItems) final;
     bool    specifiesCoordinate (void) const final;
     double  timeBetweenShots    (void) final;
@@ -56,7 +52,7 @@ public:
     ReadyForSaveState   readyForSaveState   (void) const final;
     double              additionalTimeDelay (void) const final { return 0; }
 
-    static const QString name;
+    static constexpr const char* canonicalName = QT_TR_NOOP("Corridor Scan");
 
     static constexpr const char* settingsGroup =            "CorridorScan";
     static constexpr const char* corridorWidthName =        "CorridorWidth";
@@ -67,6 +63,7 @@ private slots:
     void _polylineDirtyChanged          (bool dirty);
     void _rebuildCorridorPolygon        (void);
     void _updateWizardMode              (void);
+    void _updateSpecifiesCoordinate     (void);
 
     // Overrides from TransectStyleComplexItem
     void _rebuildTransectsPhase1    (void) final;
@@ -85,6 +82,7 @@ private:
 
     QMap<QString, FactMetaData*>    _metaDataMap;
     SettingsFact                    _corridorWidthFact;
+    bool                            _specifiesCoordinate = false;
 
     static constexpr const char* _jsonEntryPointKey =       "EntryPoint";
 };

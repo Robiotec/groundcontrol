@@ -1,13 +1,10 @@
 #pragma once
 
-#include <QtCore/QLoggingCategory>
 #include <QtCore/QObject>
 #include <QtCore/QString>
 #include <QtQmlIntegration/QtQmlIntegration>
 
-#include "MAVLinkLib.h"
-
-Q_DECLARE_LOGGING_CATEGORY(MAVLinkInspectorControllerLog)
+#include "MAVLinkMessageType.h"
 
 class LinkInterface;
 class MAVLinkChartController;
@@ -16,7 +13,8 @@ class QmlObjectListModel;
 class QTimer;
 class Vehicle;
 
-/// MAVLink message inspector controller (provides the logic for UI display)
+/// \brief MAVLink message inspector controller (provides the logic for UI display)
+///
 class MAVLinkInspectorController : public QObject
 {
     Q_OBJECT
@@ -57,7 +55,7 @@ public:
 
     QmlObjectListModel *systems() const { return _systems; }
     QGCMAVLinkSystem *activeSystem() const { return _activeSystem; }
-    QStringList systemNames() const { return _systemNames; }
+    QStringList systemNames() const;
     QStringList timeScales();
     QStringList rangeList();
 
@@ -84,7 +82,6 @@ private:
 
     QStringList _timeScales;
     QStringList _rangeList;
-    QStringList _systemNames;
     QList<TimeScale_st*>_timeScaleSt;
     QList<Range_st*> _rangeSt;
     QGCMAVLinkSystem *_activeSystem = nullptr;

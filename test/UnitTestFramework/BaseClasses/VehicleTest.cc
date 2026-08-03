@@ -9,7 +9,7 @@
 #include "MissionItem.h"
 #include "MultiVehicleManager.h"
 #include "ParameterManager.h"
-#include "QGC.h"
+#include "QGCMath.h"
 #include "QGCLoggingCategory.h"
 #include "Vehicle.h"
 
@@ -125,7 +125,7 @@ void VehicleTest::simulateConnectionRemoved()
     }
 }
 
-void VehicleTest::_connectMockLink(MAV_AUTOPILOT autopilot, MockConfiguration::FailureMode_t failureMode)
+void VehicleTest::_connectMockLink(MAV_AUTOPILOT autopilot, MockConfiguration::FailureMode_t failureMode, MockConfiguration::Options options)
 {
     QVERIFY2(!_mockLink, "MockLink already connected");
 
@@ -134,19 +134,19 @@ void VehicleTest::_connectMockLink(MAV_AUTOPILOT autopilot, MockConfiguration::F
 
     switch (autopilot) {
         case MAV_AUTOPILOT_PX4:
-            _mockLink = MockLink::startPX4MockLink(false /* sendStatusText */, false /* enableCamera */, false /* enableGimbal */, failureMode);
+            _mockLink = MockLink::startPX4MockLink(options, failureMode);
             break;
         case MAV_AUTOPILOT_ARDUPILOTMEGA:
-            _mockLink = MockLink::startAPMArduCopterMockLink(false /* sendStatusText */, false /* enableCamera */, false /* enableGimbal */, failureMode);
+            _mockLink = MockLink::startAPMArduCopterMockLink(options, failureMode);
             break;
         case MAV_AUTOPILOT_GENERIC:
-            _mockLink = MockLink::startGenericMockLink(false /* sendStatusText */, false /* enableCamera */, false /* enableGimbal */, failureMode);
+            _mockLink = MockLink::startGenericMockLink(options, failureMode);
             break;
         case MAV_AUTOPILOT_INVALID:
-            _mockLink = MockLink::startNoInitialConnectMockLink(false /* sendStatusText */, false /* enableCamera */, false /* enableGimbal */);
+            _mockLink = MockLink::startNoInitialConnectMockLink(options);
             break;
         default:
-            qCWarning(VehicleTestLog) << "Unsupported autopilot type:" << autopilot;
+            QFAIL(qPrintable(QStringLiteral("Unsupported autopilot type: %1").arg(autopilot)));
             return;
     }
 
@@ -192,21 +192,6 @@ void VehicleTest::_linkDeleted(const LinkInterface* link)
     if (link == _mockLink) {
         _mockLink = nullptr;
     }
-}
-
-void VehicleTest::_missionItemsEqual(const MissionItem& actual, const MissionItem& expected)
-{
-    QCOMPARE(static_cast<int>(actual.command()), static_cast<int>(expected.command()));
-    QCOMPARE(static_cast<int>(actual.frame()), static_cast<int>(expected.frame()));
-    QCOMPARE(actual.autoContinue(), expected.autoContinue());
-
-    QVERIFY(QGC::fuzzyCompare(actual.param1(), expected.param1()));
-    QVERIFY(QGC::fuzzyCompare(actual.param2(), expected.param2()));
-    QVERIFY(QGC::fuzzyCompare(actual.param3(), expected.param3()));
-    QVERIFY(QGC::fuzzyCompare(actual.param4(), expected.param4()));
-    QVERIFY(QGC::fuzzyCompare(actual.param5(), expected.param5()));
-    QVERIFY(QGC::fuzzyCompare(actual.param6(), expected.param6()));
-    QVERIFY(QGC::fuzzyCompare(actual.param7(), expected.param7()));
 }
 
 QString VehicleTest::failureContextSummary() const

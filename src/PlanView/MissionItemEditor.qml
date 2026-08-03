@@ -16,6 +16,7 @@ Rectangle {
     signal clicked
     signal remove
     signal selectNextNotReadyItem
+    signal editorExpandedAndLoaded
 
     id:             _root
     height:         _currentItem ? (editorLoader.y + editorLoader.height + _innerMargin) : (topRowLayout.y + topRowLayout.height + _margin)
@@ -31,7 +32,7 @@ Rectangle {
     property color  _outerTextColor:            _currentItem ? qgcPal.buttonHighlightText : qgcPal.text
     property bool   _noMissionItemsAdded:       _missionController.visualItems ? _missionController.visualItems.count <= 1 : true
     property real   _sectionSpacer:             ScreenTools.defaultFontPixelWidth / 2  // spacing between section headings
-    property bool   _singleComplexItem:         _missionController.complexMissionItemNames.length === 1
+    property bool   _singleComplexItem:         _missionController.complexMissionItems.length === 1
     property bool   _readyForSave:              missionItem.readyForSaveState === VisualMissionItem.ReadyForSave
 
     readonly property real  _editFieldWidth:    Math.min(width - _innerMargin * 2, ScreenTools.defaultFontPixelWidth * 12)
@@ -224,7 +225,7 @@ Rectangle {
                     QGCButton {
                         Layout.fillWidth:   true
                         text:               qsTr("Move to vehicle position")
-                        enabled:            _activeVehicle && missionItem.specifiesCoordinate
+                        enabled:            _activeVehicle && missionItem.specifiesCoordinate && _activeVehicle.coordinate.isValid
 
                         onClicked: {
                             missionItem.coordinate = _activeVehicle.coordinate
@@ -348,8 +349,25 @@ Rectangle {
         anchors.margins:    _innerMargin
         anchors.left:       parent.left
         anchors.top:        topRowLayout.bottom
-        asynchronous:       true
 
+        // Deliberately not asynchronous. With asynchronous: true the editor is built
+        // incrementally over later event-loop ticks. If the user switches layers before
+        // that finishes, the TreeView collapses the mission group and destroys this
+        // delegate, and the still-running load then warns "Cannot create a component in
+        // an invalid context". Synchronous loading closes that window: the editor is
+        // fully built before control returns to the event loop.
         Component.onCompleted: _root._loadEditor()
+    }
+
+    onHeightChanged: {
+        if (_currentItem && editorLoader.status === Loader.Ready) {
+            _editorHeightSettleTimer.restart()
+        }
+    }
+
+    Timer {
+        id: _editorHeightSettleTimer
+        interval: 100
+        onTriggered: _root.editorExpandedAndLoaded()
     }
 }

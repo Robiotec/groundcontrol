@@ -4,12 +4,26 @@
 #include <QtCore/QCoreApplication>
 #include <QtCore/QSettings>
 
+#include "QGCCacheTile.h"
 #include "QGCCachedTileSet.h"
 #include "QGCLoggingCategory.h"
 #include "QGCMapTasks.h"
 #include "QGCMapUrlEngine.h"
 
+#ifdef QGC_UNITTEST_BUILD
+#include "AppMessages.h"
+#endif
+
 QGC_LOGGING_CATEGORY(QGCTileCacheWorkerLog, "QtLocationPlugin.QGCTileCacheWorker")
+
+#ifdef QGC_UNITTEST_BUILD
+std::function<QGCCacheTile*(const QString&)> QGCCacheWorker::_unitTestTileGenerator;
+
+void QGCCacheWorker::setUnitTestTileGenerator(std::function<QGCCacheTile*(const QString &hash)> generator)
+{
+    _unitTestTileGenerator = std::move(generator);
+}
+#endif
 
 QGCCacheWorker::QGCCacheWorker(QObject *parent)
     : QThread(parent)
@@ -17,7 +31,6 @@ QGCCacheWorker::QGCCacheWorker(QObject *parent)
     qCDebug(QGCTileCacheWorkerLog) << this;
 }
 
-// L3: Defensive destructor ensures thread is stopped even if caller forgets
 QGCCacheWorker::~QGCCacheWorker()
 {
     stop();
@@ -25,8 +38,6 @@ QGCCacheWorker::~QGCCacheWorker()
     qCDebug(QGCTileCacheWorkerLog) << this;
 }
 
-// C1: Added _taskQueue.clear() — qDeleteAll does not clear the container,
-// leaving dangling pointers that the worker thread would dequeue.
 void QGCCacheWorker::stop()
 {
     _stopRequested = true;
@@ -87,7 +98,6 @@ void QGCCacheWorker::run()
 
     _dbValid = _database->isValid();
 
-    // M1: Start timer before the loop — hasExpired() on an unstarted timer is UB
     _updateTimer.start();
 
     QMutexLocker lock(&_taskQueueMutex);
@@ -118,8 +128,6 @@ void QGCCacheWorker::run()
         }
     }
 
-    // H1: Drain any tasks enqueued between the break decision and shutdown.
-    // Tasks are main-thread QObjects so deleteLater() posts to the main event loop.
     for (QGCMapTask *orphan : _taskQueue) {
         orphan->setError(tr("Worker shutting down"));
         orphan->deleteLater();
@@ -138,7 +146,6 @@ void QGCCacheWorker::_runTask(QGCMapTask *task)
 {
     switch (task->type()) {
     case QGCMapTask::TaskType::taskInit:
-        // L2: No-op — used only to bootstrap the worker thread
         break;
     case QGCMapTask::TaskType::taskCacheTile:
         _saveTile(task);
@@ -199,7 +206,6 @@ void QGCCacheWorker::_emitTotals()
     _updateTimer.restart();
 }
 
-// M2: Check saveTile return value
 void QGCCacheWorker::_saveTile(QGCMapTask *mtask)
 {
     if (!_testTask(mtask)) {
@@ -223,13 +229,25 @@ void QGCCacheWorker::_getTile(QGCMapTask *mtask)
     auto tile = _database->getTile(task->hash());
     if (tile) {
         task->setTileFetched(tile.release());
-    } else {
-        task->setError("Tile not in cache database");
+        return;
     }
+
+    // Under unit tests a cache miss consults the synthetic tile generator instead of
+    // erroring, so tile consumers never fall back to real network fetches (late
+    // replies race UI teardown and crash). See UnitTestTileGenerator.
+#ifdef QGC_UNITTEST_BUILD
+    if (QGC::runningUnitTests() && _unitTestTileGenerator) {
+        QGCCacheTile* const generated = _unitTestTileGenerator(task->hash());
+        if (generated) {
+            task->setTileFetched(generated);
+            return;
+        }
+    }
+#endif
+
+    task->setError("Tile not in cache database");
 }
 
-// M4: Empty result is not an error (fresh DB or all sets deleted)
-// M5: Block signals on worker-thread-created QObjects until moveToThread
 void QGCCacheWorker::_getTileSets(QGCMapTask *mtask)
 {
     if (!_testTask(mtask)) {
@@ -269,9 +287,6 @@ void QGCCacheWorker::_getTileSets(QGCMapTask *mtask)
     }
 }
 
-// H2: Block signals while modifying the tile set from the worker thread.
-// The object is exclusively owned by this task (no concurrent access), but
-// emitting signals from the wrong thread is technically incorrect.
 void QGCCacheWorker::_createTileSet(QGCMapTask *mtask)
 {
     if (!_testTask(mtask)) {
@@ -340,7 +355,6 @@ void QGCCacheWorker::_updateTileDownloadState(QGCMapTask *mtask)
     }
 }
 
-// M2: Check return value, don't signal success on failure
 void QGCCacheWorker::_pruneCache(QGCMapTask *mtask)
 {
     if (!_testTask(mtask)) {
@@ -355,7 +369,6 @@ void QGCCacheWorker::_pruneCache(QGCMapTask *mtask)
     task->setPruned();
 }
 
-// M2: Check return value, don't signal success on failure
 void QGCCacheWorker::_deleteTileSet(QGCMapTask *mtask)
 {
     if (!_testTask(mtask)) {
@@ -383,7 +396,6 @@ void QGCCacheWorker::_renameTileSet(QGCMapTask *mtask)
     }
 }
 
-// M2: Check return value, don't signal success on failure
 void QGCCacheWorker::_resetCacheDatabase(QGCMapTask *mtask)
 {
     if (!_testTask(mtask)) {
@@ -399,7 +411,6 @@ void QGCCacheWorker::_resetCacheDatabase(QGCMapTask *mtask)
     task->setResetCompleted();
 }
 
-// H4: Don't emit completion on failure
 void QGCCacheWorker::_importSets(QGCMapTask *mtask)
 {
     if (!_testTask(mtask)) {
@@ -432,9 +443,6 @@ void QGCCacheWorker::_importSets(QGCMapTask *mtask)
     task->setImportCompleted();
 }
 
-// H3: Records are now snapshotted on the main thread via QGCExportTileTask,
-// eliminating cross-thread reads of live QGCCachedTileSet objects.
-// H4: Don't emit completion on failure
 void QGCCacheWorker::_exportSets(QGCMapTask *mtask)
 {
     if (!_testTask(mtask)) {

@@ -72,6 +72,7 @@ void QGCPalette::_buildMap()
     DECLARE_QGC_COLOR(statusPendingText,    "#9d9d9d", "#000000", "#707070", "#ffffff")
     DECLARE_QGC_COLOR(toolbarBackground,    "#60dfffff", "#60dfffff", "#2a3b3b22", "#2a3b3b22")
     DECLARE_QGC_COLOR(groupBorder,          "#bbbbbb", "#FFAE12", "#94693C", "#EDA960")
+    DECLARE_QGC_COLOR(modifiedParamValue,   "#bf7539", "#bf7539", "#de8500", "#de8500")
 
     // Colors not affecting by theming
     //                                                      Disabled     Enabled

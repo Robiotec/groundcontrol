@@ -1,38 +1,10 @@
 #include "QmlObjectTreeModelTest.h"
 
-#include <QtTest/QSignalSpy>
+#include "TestDirtyObject.h"
+
 #include <QtCore/QPersistentModelIndex>
 #include <QtCore/QAbstractItemModel>
-
-// ---------------------------------------------------------------------------
-// DirtyObject — minimal QObject with a dirty property for signal testing
-// ---------------------------------------------------------------------------
-namespace {
-
-class DirtyObject : public QObject
-{
-    Q_OBJECT
-    Q_PROPERTY(bool dirty READ dirty WRITE setDirty NOTIFY dirtyChanged)
-
-public:
-    explicit DirtyObject(QObject* parent = nullptr) : QObject(parent) {}
-
-    bool dirty() const { return _dirty; }
-    void setDirty(bool dirty)
-    {
-        if (_dirty == dirty) return;
-        _dirty = dirty;
-        emit dirtyChanged(_dirty);
-    }
-
-signals:
-    void dirtyChanged(bool dirty);
-
-private:
-    bool _dirty = false;
-};
-
-} // namespace
+#include <QtTest/QSignalSpy>
 
 // ===========================================================================
 // Construction & empty state
@@ -137,7 +109,9 @@ void QmlObjectTreeModelTest::_insertOutOfRangeLogsWarning()
     QmlObjectTreeModel model;
     QObject obj;
 
+    expectLogMessage("API.QmlObjectTreeModel", QtWarningMsg, QRegularExpression("insertItem: invalid row"));
     const QModelIndex idx = model.insertItem(5, &obj); // row 5, but 0 children
+    verifyExpectedLogMessage();
     QVERIFY(!idx.isValid()); // should fail gracefully
     QCOMPARE(model.count(), 0);
 }
@@ -207,7 +181,9 @@ void QmlObjectTreeModelTest::_removeChildrenKeepsParent()
 void QmlObjectTreeModelTest::_removeInvalidIndexReturnsNull()
 {
     QmlObjectTreeModel model;
+    expectLogMessage("API.QmlObjectTreeModel", QtWarningMsg, QRegularExpression("removeItem: invalid index"));
     QObject* removed = model.removeItem(QModelIndex());
+    verifyExpectedLogMessage();
     QVERIFY(removed == nullptr);
 }
 
@@ -528,7 +504,7 @@ void QmlObjectTreeModelTest::_insertSetsDirty()
 void QmlObjectTreeModelTest::_childDirtyPropagates()
 {
     QmlObjectTreeModel model;
-    DirtyObject obj;
+    TestDirtyObject obj;
 
     QSignalSpy dirtySpy(&model, &QmlObjectTreeModel::dirtyChanged);
     QVERIFY(dirtySpy.isValid());
@@ -546,7 +522,7 @@ void QmlObjectTreeModelTest::_childDirtyPropagates()
 void QmlObjectTreeModelTest::_removeDisconnectsDirty()
 {
     QmlObjectTreeModel model;
-    DirtyObject obj;
+    TestDirtyObject obj;
 
     model.appendItem(&obj);
     const QModelIndex idx = model.indexForObject(&obj);
@@ -664,13 +640,17 @@ void QmlObjectTreeModelTest::_insertDuringResetNoSignals()
 void QmlObjectTreeModelTest::_insertRowsReturnsFalse()
 {
     QmlObjectTreeModel model;
+    expectLogMessage("API.QmlObjectTreeModel", QtWarningMsg, QRegularExpression(R"(insertRows\(\) not supported)"));
     QVERIFY(!model.insertRows(0, 1));
+    verifyExpectedLogMessage();
 }
 
 void QmlObjectTreeModelTest::_removeRowsReturnsFalse()
 {
     QmlObjectTreeModel model;
+    expectLogMessage("API.QmlObjectTreeModel", QtWarningMsg, QRegularExpression(R"(removeRows\(\) not supported)"));
     QVERIFY(!model.removeRows(0, 1));
+    verifyExpectedLogMessage();
 }
 
 // ===========================================================================
@@ -760,5 +740,3 @@ void QmlObjectTreeModelTest::_destructorSafeWithDestroyedObjects()
 }
 
 UT_REGISTER_TEST(QmlObjectTreeModelTest, TestLabel::Unit)
-
-#include "QmlObjectTreeModelTest.moc"

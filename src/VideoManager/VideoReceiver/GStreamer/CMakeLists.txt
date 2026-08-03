@@ -1,142 +1,196 @@
-target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_sources(${CMAKE_PROJECT_NAME} PRIVATE VideoItemStub.h)
-
-if(QGC_ENABLE_GST_VIDEOSTREAMING)
-    find_package(QGCGStreamer
-        REQUIRED
-        COMPONENTS Core Base Video Gl GlPrototypes Rtsp
-        OPTIONAL_COMPONENTS GlEgl GlWayland GlX11
-    )
-
-    if(GStreamer_USE_STATIC_LIBS)
-        foreach(_plugin IN LISTS GSTREAMER_PLUGINS)
-            if(GST_PLUGIN_${_plugin}_FOUND)
-                target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE GST_PLUGIN_${_plugin}_FOUND)
-            endif()
-        endforeach()
-    endif()
-
-    add_subdirectory(gstqml6gl)
-
-    # TODO: Add Qt6 Direct3D11 plugin support
-    # https://gstreamer.freedesktop.org/documentation/qt6d3d11/index.html#qml6d3d11sink-page
+if(NOT QGC_ENABLE_GST_VIDEOSTREAMING)
+    return()
 endif()
 
-if(TARGET gstqml6gl)
-    target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE gstqml6gl)
+# Linux adds Allocators (gstreamer-allocators-1.0) for the DMABuf header probe in Orchestrator.cmake.
+# RtspServer (gstreamer-rtsp-server-1.0) drives the MockLink test video stream server, which is
+# Debug-only (see Comms/MockLink/CMakeLists.txt) — so only request it in Debug to keep the
+# rtsp-server lib out of release builds. It is also optional: a define is emitted below only
+# when the SDK actually ships it.
+set(_qgc_gst_components Core Base Video App Rtsp)
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    list(APPEND _qgc_gst_components RtspServer)
+endif()
+if(LINUX)
+    list(APPEND _qgc_gst_components Allocators)
+endif()
+set(QGCGStreamer_FIND_COMPONENTS ${_qgc_gst_components})
+include(GStreamer/Orchestrator)
 
-    target_sources(${CMAKE_PROJECT_NAME}
+# QGCGStreamer: one static lib for the self-contained HwBuffers + gstqgc leaf layer (no app deps).
+# PUBLIC usage reqs flow to the app via the link below; facade sources stay app-side (need app headers).
+qt_add_library(QGCGStreamer STATIC)
+
+target_link_libraries(QGCGStreamer
+    PUBLIC
+        GStreamer::GStreamer
+        Qt6::Multimedia
+        Qt6::MultimediaPrivate
+        QGCLogging
+)
+
+target_compile_definitions(QGCGStreamer PUBLIC QGC_GST_STREAMING)
+
+# gstreamer-rtsp-server-1.0 is only requested in Debug (MockLink test server) and may be absent
+# on minimal installs. Its api_rtsp_server target is already aggregated into GStreamer::GStreamer
+# when found; just flag availability for MockVideoStreamServer.
+if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND GStreamer_RtspServer_FOUND)
+    target_compile_definitions(QGCGStreamer PUBLIC QGC_GST_RTSP_SERVER)
+endif()
+
+if(LINUX AND GStreamer_VERSION VERSION_LESS "1.28.0")
+    target_compile_definitions(QGCGStreamer PUBLIC QGC_GST_ENABLE_LEGACY_PARSEBIN_CAPS_FILTER=1)
+endif()
+
+# MockVideoStreamServer feeds MockLink's synthetic video stream; MockLink is Debug-only
+# (see Comms/MockLink/CMakeLists.txt), so only compile it in Debug to keep it out of release.
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    target_sources(QGCGStreamer
         PRIVATE
-            GStreamer.cc
-            GStreamer.h
-            GStreamerHelpers.cc
-            GStreamerHelpers.h
-            GStreamerLogging.cc
-            GStreamerLogging.h
-            GstVideoReceiver.cc
-            GstVideoReceiver.h
+            MockVideoStreamServer.cc
+            MockVideoStreamServer.h
     )
-
-    add_subdirectory(gstqgc)
-
-    target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE QGC_GST_STREAMING)
-
-    if(LINUX)
-        # Fixed "lib" to match AppRun expectations (CMAKE_INSTALL_LIBDIR varies by distro)
-        gstreamer_install_plugins(
-            SOURCE_DIR "${GSTREAMER_PLUGIN_PATH}"
-            DEST_DIR "lib/gstreamer-1.0"
-            EXTENSION "so"
-            PREFIX "libgst"
-        )
-        gstreamer_install_gio_modules(
-            SOURCE_DIR "${GSTREAMER_LIB_PATH}/gio/modules"
-            DEST_DIR "lib/gio/modules"
-            EXTENSION "so"
-        )
-        # Helper binary path varies by distro: Debian lib/<multiarch>/gstreamer1.0/,
-        # Fedora libexec/gstreamer-1.0/, Arch lib/gstreamer-1.0/.
-        # We install to Debian convention (lib/gstreamer1.0/gstreamer-1.0/);
-        # runtime env var GST_PLUGIN_SCANNER in GStreamer.cc matches this path.
-        find_program(_GST_PLUGIN_SCANNER gst-plugin-scanner
-            PATHS
-                "${GSTREAMER_LIB_PATH}/gstreamer1.0/gstreamer-1.0"
-                "${GStreamer_ROOT_DIR}/libexec/gstreamer-1.0"
-                "${GSTREAMER_PLUGIN_PATH}"
-            NO_DEFAULT_PATH
-        )
-        if(_GST_PLUGIN_SCANNER)
-            install(PROGRAMS "${_GST_PLUGIN_SCANNER}"
-                DESTINATION "lib/gstreamer1.0/gstreamer-1.0")
-        else()
-            message(WARNING "gst-plugin-scanner not found; AppImage video may not work")
-        endif()
-        find_program(_GST_PTP_HELPER gst-ptp-helper
-            PATHS
-                "${GSTREAMER_LIB_PATH}/gstreamer1.0/gstreamer-1.0"
-                "${GStreamer_ROOT_DIR}/libexec/gstreamer-1.0"
-                "${GSTREAMER_PLUGIN_PATH}"
-            NO_DEFAULT_PATH
-        )
-        if(_GST_PTP_HELPER)
-            install(PROGRAMS "${_GST_PTP_HELPER}"
-                DESTINATION "lib/gstreamer1.0/gstreamer-1.0")
-        endif()
-
-    elseif(WIN32)
-        gstreamer_install_libs(
-            SOURCE_DIR "${GStreamer_ROOT_DIR}/bin"
-            DEST_DIR "${CMAKE_INSTALL_BINDIR}"
-            EXTENSION "dll"
-        )
-        gstreamer_install_gio_modules(
-            SOURCE_DIR "${GSTREAMER_LIB_PATH}/gio/modules"
-            DEST_DIR "${CMAKE_INSTALL_LIBDIR}/gio/modules"
-            EXTENSION "dll"
-        )
-        gstreamer_install_plugins(
-            SOURCE_DIR "${GSTREAMER_PLUGIN_PATH}"
-            DEST_DIR "${CMAKE_INSTALL_LIBDIR}/gstreamer-1.0"
-            EXTENSION "dll"
-            PREFIX "gst"
-        )
-        install(
-            DIRECTORY "${GStreamer_ROOT_DIR}/libexec/gstreamer-1.0/"
-            DESTINATION "${CMAKE_INSTALL_LIBEXECDIR}/gstreamer-1.0"
-            FILE_PERMISSIONS
-                OWNER_READ OWNER_WRITE OWNER_EXECUTE
-                GROUP_READ             GROUP_EXECUTE
-                WORLD_READ             WORLD_EXECUTE
-            FILES_MATCHING
-                PATTERN "*.exe"
-        )
-
-    elseif(MACOS)
-        if(GSTREAMER_FRAMEWORK)
-            # Resolve the framework real path before install. Some SDK layouts expose
-            # the framework as a symlink; copying through the symlink can leave an
-            # unsigned wrapper path inside the app bundle.
-            get_filename_component(_gst_framework_real "${GSTREAMER_FRAMEWORK}" REALPATH)
-            install(
-                DIRECTORY "${_gst_framework_real}/"
-                DESTINATION "${CMAKE_INSTALL_PREFIX}/${CMAKE_PROJECT_NAME}.app/Contents/Frameworks/GStreamer.framework"
-                USE_SOURCE_PERMISSIONS
-                PATTERN "*.la" EXCLUDE
-                PATTERN "*.a" EXCLUDE
-                PATTERN "*/bin" EXCLUDE
-                PATTERN "*/etc" EXCLUDE
-                PATTERN "*/gst-validate-launcher" EXCLUDE
-                PATTERN "*/Headers" EXCLUDE
-                PATTERN "*/include" EXCLUDE
-                PATTERN "*/pkgconfig" EXCLUDE
-                PATTERN "*/share" EXCLUDE
-                PATTERN "*gstpython*" EXCLUDE
-            )
-        else()
-            message(WARNING "macOS: Homebrew GStreamer detected. "
-                "Distributable builds require the GStreamer.framework SDK from "
-                "https://gstreamer.freedesktop.org/download/")
-        endif()
-    endif()
-
 endif()
+
+# The *ForTest() helpers (singleFdImportEnabledForTest, clearForTest) compile only under this flag.
+# PUBLIC so both QGCGStreamer (helper defs) and the app target's GStreamerTest.cc (decls) see it.
+if(QGC_BUILD_TESTING)
+    target_compile_definitions(QGCGStreamer PUBLIC QGC_GST_BUILD_TESTING)
+endif()
+
+target_include_directories(QGCGStreamer
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/gstqgc
+        ${CMAKE_CURRENT_SOURCE_DIR}/HwBuffers
+        ${CMAKE_CURRENT_SOURCE_DIR}/HwBuffers/common
+        ${CMAKE_CURRENT_SOURCE_DIR}/HwBuffers/dmabuf
+        ${CMAKE_CURRENT_SOURCE_DIR}/HwBuffers/gl
+        ${CMAKE_CURRENT_SOURCE_DIR}/HwBuffers/d3d
+        ${CMAKE_CURRENT_SOURCE_DIR}/HwBuffers/vulkan
+        ${CMAKE_CURRENT_SOURCE_DIR}/HwBuffers/apple
+        ${CMAKE_CURRENT_SOURCE_DIR}/HwBuffers/android
+        ${CMAKE_CURRENT_SOURCE_DIR}/HwBuffers/cuda
+    PRIVATE
+        ${CMAKE_BINARY_DIR}
+)
+
+# Qt6::MultimediaQuickPrivate is OPTIONAL at the root find_package; link it when present
+# (GStreamer.cc / GStreamerFrameMap.cc need MultimediaQuick) rather than failing configure.
+if(TARGET Qt6::MultimediaQuickPrivate)
+    target_link_libraries(QGCGStreamer PUBLIC Qt6::MultimediaQuickPrivate)
+else()
+    message(WARNING "QGCGStreamer: Qt6::MultimediaQuickPrivate not found - GStreamer video sink integration may not build")
+endif()
+
+add_subdirectory(HwBuffers)
+add_subdirectory(gstqgc)
+
+target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE QGCGStreamer)
+
+# GStreamer:: facade: app-facing API + source/receiver glue. App-coupled, so it stays on the app
+# target and inherits QGCGStreamer's PUBLIC deps/defs/includes via the link above.
+target_sources(${CMAKE_PROJECT_NAME}
+    PRIVATE
+        GStreamer.cc
+        GStreamer.h
+        GStreamerEnvironment.cc
+        GStreamerEnvironment.h
+        GStreamerHelpers.cc
+        GStreamerHelpers.h
+        GStreamerLogging.cc
+        GStreamerLogging.h
+        GstScoped.h
+        GstSourceFactory.cc
+        GstSourceFactory.h
+        GstVideoReceiver.cc
+        GstVideoReceiver.h
+        QGCQVideoSinkController.cc
+        QGCQVideoSinkController.h
+)
+
+# iOS xcframework ships no CA list / no keychain-via-OpenSSL; bundle a Mozilla NSS extract for
+# libgioopenssl (fetched at configure time, IOS.cmake). On the app target for MACOSX_PACKAGE_LOCATION.
+if(IOS AND GStreamer_IOS_CA_BUNDLE)
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE "${GStreamer_IOS_CA_BUNDLE}")
+    set_source_files_properties("${GStreamer_IOS_CA_BUNDLE}" PROPERTIES
+        MACOSX_PACKAGE_LOCATION "ssl/certs"
+        HEADER_FILE_ONLY TRUE
+    )
+endif()
+
+# gst_init_static_plugins() shim source (called in GStreamer.cc::_registerPlugins), per platform:
+#   iOS: provided by GStreamer.xcframework (via GStreamer::mobile); no shim generated.
+#   Android: shim generated here from the plugin/GIO lists the Android backend put in scope via
+#            include(GStreamer/Orchestrator); GStreamer::mobile whole-archives the .a's into the app core.
+#   Desktop static: shim generated from GSTREAMER_PLUGINS below.
+if(IOS AND TARGET GStreamer::mobile)
+    target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE GStreamer::mobile)
+elseif(ANDROID AND TARGET GStreamer::mobile)
+    # Pull the whole-archived plugin .a's + helpers + GIO modules into the app's one core.
+    target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE GStreamer::mobile)
+    # The Android SDK gst_init() does NOT register the bundled plugins (verified on-device: without this,
+    # coreelements/tcp/udp/rtp/... stay unregistered), so the generated gst_init_static_plugins() is required.
+    configure_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/gst_static_plugins.c.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/gst_static_plugins.c"
+        @ONLY)
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE
+        "${CMAKE_CURRENT_BINARY_DIR}/gst_static_plugins.c")
+    # This generated C source must not pull the app's C++ precompiled header (the app PCH
+    # includes C++-only Qt headers); a C-language PCH built from it fails to compile.
+    set_source_files_properties(
+        "${CMAKE_CURRENT_BINARY_DIR}/gst_static_plugins.c"
+        TARGET_DIRECTORY ${CMAKE_PROJECT_NAME}
+        PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
+elseif(GStreamer_USE_STATIC_LIBS)
+    set(_qgc_found_static "")
+    set(_qgc_missing_static "")
+    foreach(_p IN LISTS GSTREAMER_PLUGINS)
+        if(GST_PLUGIN_${_p}_FOUND)
+            list(APPEND _qgc_found_static "${_p}")
+        else()
+            list(APPEND _qgc_missing_static "${_p}")
+        endif()
+    endforeach()
+    _gst_emit_static_plugin_registration(_qgc_found_static _qgc_decl _qgc_reg)
+    if(_qgc_missing_static)
+        # AVAILABLE = what was found, not the full request, else real gaps are hidden.
+        gstreamer_filter_alternates(IN_OUT_PLUGINS _qgc_missing_static AVAILABLE ${_qgc_found_static})
+    endif()
+    if(_qgc_missing_static)
+        message(WARNING "GStreamer (static): requested plugins not found as targets and omitted from static registration: ${_qgc_missing_static}")
+    endif()
+    set(PLUGINS_DECLARATION  "${_qgc_decl}")
+    set(PLUGINS_REGISTRATION "${_qgc_reg}")
+    set(G_IO_MODULES_DECLARE "")
+    set(G_IO_MODULES_LOAD    "")
+    configure_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/gst_static_plugins.c.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/gst_static_plugins.c"
+        @ONLY)
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE
+        "${CMAKE_CURRENT_BINARY_DIR}/gst_static_plugins.c")
+    set_source_files_properties(
+        "${CMAKE_CURRENT_BINARY_DIR}/gst_static_plugins.c"
+        TARGET_DIRECTORY ${CMAKE_PROJECT_NAME}
+        PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
+    unset(_qgc_decl)
+    unset(_qgc_reg)
+endif()
+
+# Mobile platforms ship plugins inside the static .a / xcfw — no install steps below.
+if(ANDROID OR IOS)
+    return()
+endif()
+
+include(GStreamer/Helpers)
+
+# Build-time rpath so the unrelocated binary finds component dylibs in the SDK
+# (framework /lib or flat /lib); install-time rpath is set in cmake/install/Install.cmake.
+if(MACOS AND GSTREAMER_LIB_PATH)
+    set_property(TARGET ${CMAKE_PROJECT_NAME} APPEND PROPERTY
+        BUILD_RPATH "${GSTREAMER_LIB_PATH}")
+endif()
+
+gstreamer_install_platform_sdk(${CMAKE_PROJECT_NAME})

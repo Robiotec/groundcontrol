@@ -7,7 +7,8 @@
 class SpeedSection;
 class CameraSection;
 
-/// A SimpleMissionItem is used to represent a single MissionItem to the ui.
+/// \brief A SimpleMissionItem is used to represent a single MissionItem to the ui.
+///
 class SimpleMissionItem : public VisualMissionItem
 {
     Q_OBJECT
@@ -124,7 +125,7 @@ public:
     QString         mapVisualQML                (void) const override { return QStringLiteral("SimpleItemMapVisual.qml"); }
     void            appendMissionItems          (QList<MissionItem*>& items, QObject* missionItemParent) final;
     void            applyNewAltitude            (double newAltitude) final;
-    void            setMissionFlightStatus      (MissionController::MissionFlightStatus_t& missionFlightStatus) final;
+    void            setMissionFlightStatus      (MissionFlightStatus_t& missionFlightStatus) final;
     ReadyForSaveState readyForSaveState         (void) const final;
     double          additionalTimeDelay         (void) const final;
     bool            exitCoordinateSameAsEntry   (void) const final { return true; }

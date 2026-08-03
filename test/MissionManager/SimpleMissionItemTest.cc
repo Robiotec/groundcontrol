@@ -1,5 +1,9 @@
 #include "SimpleMissionItemTest.h"
 
+#include <memory>
+
+#include <QtPositioning/QGeoCoordinate>
+
 #include "AppSettings.h"
 #include "CameraSection.h"
 #include "MissionCommandTree.h"
@@ -40,25 +44,24 @@ void SimpleMissionItemTest::cleanup()
     _simpleItem = nullptr;
 }
 
-bool SimpleMissionItemTest::_classMatch(QGCMAVLink::VehicleClass_t vehicleClass, QGCMAVLink::VehicleClass_t testClass)
+bool SimpleMissionItemTest::_classMatch(QGCMAVLinkTypes::VehicleClass_t vehicleClass, QGCMAVLinkTypes::VehicleClass_t testClass)
 {
     return vehicleClass == QGCMAVLink::VehicleClassGeneric || vehicleClass == testClass;
 }
 
-void SimpleMissionItemTest::_testEditorFactsWorker(QGCMAVLink::VehicleClass_t vehicleClass,
-                                                   QGCMAVLink::VehicleClass_t vtolMode)
+void SimpleMissionItemTest::_testEditorFactsWorker(QGCMAVLinkTypes::VehicleClass_t vehicleClass,
+                                                   QGCMAVLinkTypes::VehicleClass_t vtolMode)
 {
     TEST_DEBUG(QStringLiteral("vehicleClass:vtolMode %1 %2")
                    .arg(QGCMAVLink::vehicleClassToUserVisibleString(vehicleClass),
                         QGCMAVLink::vehicleClassToUserVisibleString(vtolMode)));
 
-    typedef struct
-    {
+    struct TestCase_t {
         MAV_CMD command;
         MAV_FRAME frame;
         double altValue;
         QGroundControlQmlGlobal::AltitudeFrame altFrame;
-    } TestCase_t;
+    };
 
     TestCase_t testCases[] = {
         {MAV_CMD_NAV_WAYPOINT, MAV_FRAME_GLOBAL_RELATIVE_ALT, 70.1234567,
@@ -74,12 +77,12 @@ void SimpleMissionItemTest::_testEditorFactsWorker(QGCMAVLink::VehicleClass_t ve
     PlanMasterController planController(MAV_AUTOPILOT_PX4, QGCMAVLink::vehicleClassToMavType(vehicleClass));
     QGCMAVLink::VehicleClass_t commandVehicleClass =
         vtolMode == QGCMAVLink::VehicleClassGeneric ? vehicleClass : vtolMode;
-    QScopedPointer<Vehicle> vehicle(new Vehicle(MAV_AUTOPILOT_PX4, QGCMAVLink::vehicleClassToMavType(vehicleClass)));
+    std::unique_ptr<Vehicle> vehicle(new Vehicle(MAV_AUTOPILOT_PX4, QGCMAVLink::vehicleClassToMavType(vehicleClass)));
     for (size_t testIdx = 0; testIdx < sizeof(testCases) / sizeof(testCases[0]); testIdx++) {
         auto& testCase = testCases[testIdx];
         auto* missionCommandTree = MissionCommandTree::instance();
         const MissionCommandUIInfo* uiInfo =
-            missionCommandTree->getUIInfo(vehicle.data(), commandVehicleClass, testCase.command);
+            missionCommandTree->getUIInfo(vehicle.get(), commandVehicleClass, testCase.command);
         TEST_DEBUG(QStringLiteral("Command %1").arg(missionCommandTree->rawName(testCase.command)));
         typedef QPair<int, QString> FactInfoPair_t;
         QList<FactInfoPair_t> cExpectedTextFieldInfo;
@@ -202,15 +205,13 @@ void SimpleMissionItemTest::_testSignals()
     //      amslEntryAltChanged, amslExitAltChanged, terrainAltitudeChanged (altitude depends on position)
     // Check that actually changing coordinate signals correctly
     _simpleItem->setCoordinate(QGeoCoordinate(missionItem.param5() + 1, missionItem.param6(), missionItem.param7()));
-    QVERIFY(_spyVisualItem->onlyEmittedOnceByMask(
-        _spyVisualItem->mask("coordinateChanged", "entryCoordinateChanged", "exitCoordinateChanged", "dirtyChanged",
-                             "amslEntryAltChanged", "amslExitAltChanged", "terrainAltitudeChanged")));
+    QVERIFY(_spyVisualItem->onlyEmittedOnce("coordinateChanged", "entryCoordinateChanged", "exitCoordinateChanged", "dirtyChanged",
+                             "amslEntryAltChanged", "amslExitAltChanged", "terrainAltitudeChanged"));
     _spyVisualItem->clearAllSignals();
     _spySimpleItem->clearAllSignals();
     _simpleItem->setCoordinate(QGeoCoordinate(missionItem.param5(), missionItem.param6() + 1, missionItem.param7()));
-    QVERIFY(_spyVisualItem->onlyEmittedOnceByMask(
-        _spyVisualItem->mask("coordinateChanged", "entryCoordinateChanged", "exitCoordinateChanged", "dirtyChanged",
-                             "amslEntryAltChanged", "amslExitAltChanged", "terrainAltitudeChanged")));
+    QVERIFY(_spyVisualItem->onlyEmittedOnce("coordinateChanged", "entryCoordinateChanged", "exitCoordinateChanged", "dirtyChanged",
+                             "amslEntryAltChanged", "amslExitAltChanged", "terrainAltitudeChanged"));
     _spyVisualItem->clearAllSignals();
     _spySimpleItem->clearAllSignals();
     // Altitude in coordinate is not used in setCoordinate
@@ -244,8 +245,7 @@ void SimpleMissionItemTest::_testSignals()
     _simpleItem->setAltitudeFrame(_simpleItem->altitudeFrame() == QGroundControlQmlGlobal::AltitudeFrameRelative
                                      ? QGroundControlQmlGlobal::AltitudeFrameAbsolute
                                      : QGroundControlQmlGlobal::AltitudeFrameRelative);
-    QVERIFY(_spySimpleItem->emittedByMask(
-        _spySimpleItem->mask("dirtyChanged", "friendlyEditAllowedChanged", "altitudeFrameChanged")));
+    QVERIFY(_spySimpleItem->emitted("dirtyChanged", "friendlyEditAllowedChanged", "altitudeFrameChanged"));
     _spySimpleItem->clearAllSignals();
     _spyVisualItem->clearAllSignals();
     // Check commandChanged signalling. Call setCommand should trigger:
@@ -258,7 +258,7 @@ void SimpleMissionItemTest::_testSignals()
     QVERIFY(_spySimpleItem->noneEmitted());
     _simpleItem->setCommand(MAV_CMD_NAV_LOITER_TIME);
     QVERIFY(_spySimpleItem->emitted("commandChanged"));
-    QVERIFY(_spyVisualItem->emittedByMask(_spyVisualItem->mask("commandNameChanged", "dirtyChanged")));
+    QVERIFY(_spyVisualItem->emitted("commandNameChanged", "dirtyChanged"));
 }
 
 void SimpleMissionItemTest::_testCameraSectionDirty()

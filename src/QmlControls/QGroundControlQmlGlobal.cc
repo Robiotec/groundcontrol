@@ -1,6 +1,5 @@
 #include "QGroundControlQmlGlobal.h"
 
-#include "QGCApplication.h"
 #include "QGCCorePlugin.h"
 #include "LinkManager.h"
 #include "MAVLinkProtocol.h"
@@ -11,11 +10,13 @@
 #include "PositionManager.h"
 #include "QGCMapEngineManager.h"
 #include "ADSBVehicleManager.h"
+#include "AudioOutput.h"
 #include "NTRIPManager.h"
+#include "MAVLinkSigningKeys.h"
 #include "MissionCommandTree.h"
 #include "VideoManager.h"
 #include "MultiVehicleManager.h"
-#include "QGCLoggingCategory.h"
+#include "LoggingCategoryModel.h"
 #ifndef QGC_NO_SERIAL_LINK
 #include "GPSManager.h"
 #include "GPSRtk.h"
@@ -24,8 +25,12 @@
 #include "MockLink.h"
 #endif
 
-#include <QtCore/QSettings>
 #include <QtCore/QLineF>
+#include <QtCore/QSettings>
+#include <QtGui/QClipboard>
+#include <QtGui/QGuiApplication>
+
+#include "QGCLoggingCategory.h"
 
 QGC_LOGGING_CATEGORY(GuidedActionsControllerLog, "QMLControls.GuidedActionsController")
 
@@ -39,6 +44,7 @@ QGroundControlQmlGlobal::QGroundControlQmlGlobal(QObject *parent)
     , _ntripManager(NTRIPManager::instance())
     , _qgcPositionManager(QGCPositionManager::instance())
     , _missionCommandTree(MissionCommandTree::instance())
+    , _mavlinkSigningKeys(MAVLinkSigningKeys::instance())
     , _videoManager(VideoManager::instance())
     , _linkManager(LinkManager::instance())
     , _multiVehicleManager(MultiVehicleManager::instance())
@@ -112,69 +118,98 @@ bool QGroundControlQmlGlobal::loadBoolGlobalSetting (const QString& key, bool de
     return settings.value(key, defaultValue).toBool();
 }
 
-void QGroundControlQmlGlobal::startPX4MockLink(bool sendStatusText, bool enableCamera, bool enableGimbal)
+#ifdef QT_DEBUG
+static MockConfiguration::Options _mockLinkOptions(bool sendStatusText, bool enableCamera, bool enableGimbal, bool enableProximity, bool apmStartFreshParams = false)
+{
+    MockConfiguration::Options options = MockConfiguration::OptionNone;
+    options.setFlag(MockConfiguration::OptionSendStatusText, sendStatusText);
+    options.setFlag(MockConfiguration::OptionEnableCamera, enableCamera);
+    options.setFlag(MockConfiguration::OptionEnableGimbal, enableGimbal);
+    options.setFlag(MockConfiguration::OptionEnableProximity, enableProximity);
+    options.setFlag(MockConfiguration::OptionAPMStartFreshParams, apmStartFreshParams);
+    return options;
+}
+#endif
+
+void QGroundControlQmlGlobal::startPX4MockLink(bool sendStatusText, bool enableCamera, bool enableGimbal, bool enableProximity, int videoStreamType)
 {
 #ifdef QT_DEBUG
-    MockLink::startPX4MockLink(sendStatusText, enableCamera, enableGimbal);
+    MockLink::startPX4MockLink(_mockLinkOptions(sendStatusText, enableCamera, enableGimbal, enableProximity), MockConfiguration::FailNone, MockConfiguration::videoStreamTypeFromInt(videoStreamType));
 #else
     Q_UNUSED(sendStatusText);
     Q_UNUSED(enableCamera);
     Q_UNUSED(enableGimbal);
+    Q_UNUSED(enableProximity);
+    Q_UNUSED(videoStreamType);
 #endif
 }
 
-void QGroundControlQmlGlobal::startGenericMockLink(bool sendStatusText, bool enableCamera, bool enableGimbal)
+void QGroundControlQmlGlobal::startGenericMockLink(bool sendStatusText, bool enableCamera, bool enableGimbal, bool enableProximity, int videoStreamType)
 {
 #ifdef QT_DEBUG
-    MockLink::startGenericMockLink(sendStatusText, enableCamera, enableGimbal);
+    MockLink::startGenericMockLink(_mockLinkOptions(sendStatusText, enableCamera, enableGimbal, enableProximity), MockConfiguration::FailNone, MockConfiguration::videoStreamTypeFromInt(videoStreamType));
 #else
     Q_UNUSED(sendStatusText);
     Q_UNUSED(enableCamera);
     Q_UNUSED(enableGimbal);
+    Q_UNUSED(enableProximity);
+    Q_UNUSED(videoStreamType);
 #endif
 }
 
-void QGroundControlQmlGlobal::startAPMArduCopterMockLink(bool sendStatusText, bool enableCamera, bool enableGimbal)
+void QGroundControlQmlGlobal::startAPMArduCopterMockLink(bool sendStatusText, bool enableCamera, bool enableGimbal, bool enableProximity, bool apmStartFreshParams, int videoStreamType)
 {
 #ifdef QT_DEBUG
-    MockLink::startAPMArduCopterMockLink(sendStatusText, enableCamera, enableGimbal);
+    MockLink::startAPMArduCopterMockLink(_mockLinkOptions(sendStatusText, enableCamera, enableGimbal, enableProximity, apmStartFreshParams), MockConfiguration::FailNone, MockConfiguration::videoStreamTypeFromInt(videoStreamType));
 #else
     Q_UNUSED(sendStatusText);
     Q_UNUSED(enableCamera);
     Q_UNUSED(enableGimbal);
+    Q_UNUSED(enableProximity);
+    Q_UNUSED(apmStartFreshParams);
+    Q_UNUSED(videoStreamType);
 #endif
 }
 
-void QGroundControlQmlGlobal::startAPMArduPlaneMockLink(bool sendStatusText, bool enableCamera, bool enableGimbal)
+void QGroundControlQmlGlobal::startAPMArduPlaneMockLink(bool sendStatusText, bool enableCamera, bool enableGimbal, bool enableProximity, bool apmStartFreshParams, int videoStreamType)
 {
 #ifdef QT_DEBUG
-    MockLink::startAPMArduPlaneMockLink(sendStatusText, enableCamera, enableGimbal);
+    MockLink::startAPMArduPlaneMockLink(_mockLinkOptions(sendStatusText, enableCamera, enableGimbal, enableProximity, apmStartFreshParams), MockConfiguration::FailNone, MockConfiguration::videoStreamTypeFromInt(videoStreamType));
 #else
     Q_UNUSED(sendStatusText);
     Q_UNUSED(enableCamera);
     Q_UNUSED(enableGimbal);
+    Q_UNUSED(enableProximity);
+    Q_UNUSED(apmStartFreshParams);
+    Q_UNUSED(videoStreamType);
 #endif
 }
 
-void QGroundControlQmlGlobal::startAPMArduSubMockLink(bool sendStatusText, bool enableCamera, bool enableGimbal)
+void QGroundControlQmlGlobal::startAPMArduSubMockLink(bool sendStatusText, bool enableCamera, bool enableGimbal, bool enableProximity, bool apmStartFreshParams, int videoStreamType)
 {
 #ifdef QT_DEBUG
-    MockLink::startAPMArduSubMockLink(sendStatusText, enableCamera, enableGimbal);
+    MockLink::startAPMArduSubMockLink(_mockLinkOptions(sendStatusText, enableCamera, enableGimbal, enableProximity, apmStartFreshParams), MockConfiguration::FailNone, MockConfiguration::videoStreamTypeFromInt(videoStreamType));
 #else
     Q_UNUSED(sendStatusText);
     Q_UNUSED(enableCamera);
     Q_UNUSED(enableGimbal);
+    Q_UNUSED(enableProximity);
+    Q_UNUSED(apmStartFreshParams);
+    Q_UNUSED(videoStreamType);
 #endif
 }
 
-void QGroundControlQmlGlobal::startAPMArduRoverMockLink(bool sendStatusText, bool enableCamera, bool enableGimbal)
+void QGroundControlQmlGlobal::startAPMArduRoverMockLink(bool sendStatusText, bool enableCamera, bool enableGimbal, bool enableProximity, bool apmStartFreshParams, int videoStreamType)
 {
 #ifdef QT_DEBUG
-    MockLink::startAPMArduRoverMockLink(sendStatusText, enableCamera, enableGimbal);
+    MockLink::startAPMArduRoverMockLink(_mockLinkOptions(sendStatusText, enableCamera, enableGimbal, enableProximity, apmStartFreshParams), MockConfiguration::FailNone, MockConfiguration::videoStreamTypeFromInt(videoStreamType));
 #else
     Q_UNUSED(sendStatusText);
     Q_UNUSED(enableCamera);
     Q_UNUSED(enableGimbal);
+    Q_UNUSED(enableProximity);
+    Q_UNUSED(apmStartFreshParams);
+    Q_UNUSED(videoStreamType);
 #endif
 }
 
@@ -312,6 +347,16 @@ void QGroundControlQmlGlobal::showMessageDialog(
     emit showMessageDialogRequested(owner, title, text, buttons, acceptFunction, closeFunction);
 }
 
+void QGroundControlQmlGlobal::testAudioOutput()
+{
+    AudioOutput::instance()->testAudioOutput();
+}
+
+void QGroundControlQmlGlobal::copyToClipboard(const QString& text)
+{
+    QGuiApplication::clipboard()->setText(text);
+}
+
 QString QGroundControlQmlGlobal::elevationProviderName()
 {
     return _settingsManager->flightMapSettings()->elevationMapProvider()->rawValue().toString();
@@ -337,37 +382,4 @@ QString QGroundControlQmlGlobal::appName()
     return QCoreApplication::applicationName();
 }
 
-void QGroundControlQmlGlobal::deleteAllSettingsNextBoot()
-{
-    QGCApplication::deleteAllSettingsNextBoot();
-}
 
-void QGroundControlQmlGlobal::clearDeleteAllSettingsNextBoot()
-{
-    QGCApplication::clearDeleteAllSettingsNextBoot();
-}
-
-QmlObjectListModel *QGroundControlQmlGlobal::treeLoggingCategoriesModel()
-{
-    return QGCLoggingCategoryManager::instance()->treeCategoryModel();
-}
-
-QmlObjectListModel *QGroundControlQmlGlobal::flatLoggingCategoriesModel()
-{
-    return QGCLoggingCategoryManager::instance()->flatCategoryModel();
-}
-
-void QGroundControlQmlGlobal::setCategoryLoggingOn(const QString &category, bool enable)
-{
-    QGCLoggingCategoryManager::instance()->setCategoryLoggingOn(category, enable);
-}
-
-bool QGroundControlQmlGlobal::categoryLoggingOn(const QString &category)
-{
-    return QGCLoggingCategoryManager::categoryLoggingOn(category);
-}
-
-void QGroundControlQmlGlobal::disableAllLoggingCategories()
-{
-    QGCLoggingCategoryManager::instance()->disableAllCategories();
-}

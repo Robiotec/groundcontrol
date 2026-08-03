@@ -1,6 +1,5 @@
 #pragma once
 
-#include <QtCore/QLoggingCategory>
 #include <QtCore/QMutexLocker>
 #include <QtCore/QObject>
 #include <QtCore/QRecursiveMutex>
@@ -12,9 +11,8 @@
 
 class FactValueSliderListModel;
 
-Q_DECLARE_LOGGING_CATEGORY(FactLog)
-
-/// A Fact is used to hold a single value within the system.
+/// \brief A Fact is used to hold a single value within the system.
+///
 class Fact : public QObject
 {
     Q_OBJECT
@@ -25,6 +23,7 @@ class Fact : public QObject
     Q_PROPERTY(QVariantList bitmaskValues           READ bitmaskValues                                          NOTIFY bitmaskValuesChanged)
     Q_PROPERTY(QStringList  selectedBitmaskStrings  READ selectedBitmaskStrings                                 NOTIFY valueChanged)
     Q_PROPERTY(int          decimalPlaces           READ decimalPlaces                                          CONSTANT)
+    Q_PROPERTY(int          maxStringLength         READ maxStringLength                                        CONSTANT)
     Q_PROPERTY(QVariant     defaultValue            READ cookedDefaultValue                                     CONSTANT)
     Q_PROPERTY(QString      defaultValueString      READ cookedDefaultValueString                               CONSTANT)
     Q_PROPERTY(bool         defaultValueAvailable   READ defaultValueAvailable                                  CONSTANT)
@@ -49,6 +48,7 @@ class Fact : public QObject
     Q_PROPERTY(bool         vehicleRebootRequired   READ vehicleRebootRequired                                  CONSTANT)
     Q_PROPERTY(bool         qgcRebootRequired       READ qgcRebootRequired                                      CONSTANT)
     Q_PROPERTY(QString      shortDescription        READ shortDescription                                       CONSTANT)
+    Q_PROPERTY(QString      label                   READ label                                                  CONSTANT)
     Q_PROPERTY(QString      units                   READ cookedUnits                                            CONSTANT)
     Q_PROPERTY(QVariant     value                   READ cookedValue                WRITE setCookedValue        NOTIFY valueChanged)
     Q_PROPERTY(QVariant     rawValue                READ rawValue                   WRITE setRawValue           NOTIFY rawValueChanged)
@@ -83,6 +83,10 @@ public:
     /// Convert and clamp value
     Q_INVOKABLE QVariant clamp(const QString &cookedValue);
     QVariant cookedValue() const; /// Value after translation
+    /// Converts an arbitrary raw value to the cooked (user units) domain using this fact's own translator.
+    /// Use this instead of the QmlUnitsConversion helpers when mixing constants with Fact values so the
+    /// conversion always follows the fact's metadata.
+    Q_INVOKABLE QVariant rawToCooked(const QVariant &rawValue) const;
     QVariant rawValue() const
     {
         QMutexLocker<QRecursiveMutex> locker(&_rawValueMutex);
@@ -90,6 +94,7 @@ public:
     }
     int componentId() const { return _componentId; }
     int decimalPlaces() const;
+    int maxStringLength() const;
     QVariant rawDefaultValue() const;
     QVariant cookedDefaultValue() const;
     bool defaultValueAvailable() const;
@@ -120,6 +125,7 @@ public:
     QVariant cookedUserMax() const;
     QString cookedUserMaxString() const;
     QString name() const { return _name; }
+    QString label() const;
     QString shortDescription() const;
     FactMetaData::ValueType_t type() const { return _type; }
     QString cookedUnits() const;

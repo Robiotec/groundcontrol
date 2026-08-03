@@ -1,9 +1,11 @@
 #include "MissionCommandList.h"
-#include "JsonHelper.h"
+#include "JsonParsing.h"
 #include "MissionCommandUIInfo.h"
 #include "QGCLoggingCategory.h"
 
 #include <QtCore/QJsonArray>
+
+QGC_LOGGING_CATEGORY(MissionCommandListLog, "MissionManager.MissionCommandList")
 
 MissionCommandList::MissionCommandList(const QString& jsonFilename, bool baseCommandList, QObject* parent)
     : QObject(parent)
@@ -17,19 +19,22 @@ void MissionCommandList::_loadMavCmdInfoJson(const QString& jsonFilename, bool b
         return;
     }
 
-    qCDebug(MissionCommandsLog) << "Loading" << jsonFilename;
+    qCDebug(MissionCommandListLog) << "Loading" << jsonFilename;
 
     QString errorString;
     int version;
-    QJsonObject jsonObject = JsonHelper::openInternalQGCJsonFile(jsonFilename, qgcFileType, 1, 1, version, errorString);
+    QJsonObject jsonObject = JsonParsing::openInternalQGCJsonFile(
+        jsonFilename, qgcFileType, 1, 1, version, errorString,
+        QStringList{"label", "enumStrings", "friendlyName", "description", "category"},
+        QStringList{"rawName", "comment"});
     if (!errorString.isEmpty()) {
-        qWarning() << "Internal Error: " << errorString;
+        qCWarning(MissionCommandListLog) << "Internal Error: " << errorString;
         return;
     }
 
     QJsonValue jsonValue = jsonObject.value(_mavCmdInfoJsonKey);
     if (!jsonValue.isArray()) {
-        qWarning() << jsonFilename << "mavCmdInfo not array";
+        qCWarning(MissionCommandListLog) << jsonFilename << "mavCmdInfo not array";
         return;
     }
 
@@ -37,7 +42,7 @@ void MissionCommandList::_loadMavCmdInfoJson(const QString& jsonFilename, bool b
     QJsonArray jsonArray = jsonValue.toArray();
     for(QJsonValue info: jsonArray) {
         if (!info.isObject()) {
-            qWarning() << jsonFilename << "mavCmdArray should contain objects";
+            qCWarning(MissionCommandListLog) << jsonFilename << "mavCmdArray should contain objects";
             return;
         }
 
@@ -46,7 +51,7 @@ void MissionCommandList::_loadMavCmdInfoJson(const QString& jsonFilename, bool b
         QString uiInfoErrorString;
         if (!uiInfo->loadJsonInfo(info.toObject(), baseCommandList, uiInfoErrorString)) {
             uiInfo->deleteLater();
-            qWarning() << jsonFilename << uiInfoErrorString;
+            qCWarning(MissionCommandListLog) << jsonFilename << uiInfoErrorString;
             return;
         }
 

@@ -1,17 +1,16 @@
 #pragma once
 
-#include <QtCore/QLoggingCategory>
 #include <QtCore/QPointer>
+#include <QtCore/QString>
 #include <QtQmlIntegration/QtQmlIntegration>
 
-#include "LogReplayLink.h"
-
-Q_DECLARE_LOGGING_CATEGORY(LogReplayLinkControllerLog)
+class LogReplayLink;
 
 class LogReplayLinkController : public QObject
 {
     Q_OBJECT
     QML_ELEMENT
+    Q_MOC_INCLUDE("LogReplayLink.h")
     Q_PROPERTY(LogReplayLink    *link           READ    link            WRITE setLink               NOTIFY linkChanged)
     Q_PROPERTY(bool             isPlaying       READ    isPlaying       WRITE setIsPlaying          NOTIFY isPlayingChanged)
     Q_PROPERTY(qreal            percentComplete READ    percentComplete WRITE setPercentComplete    NOTIFY percentCompleteChanged)
@@ -52,9 +51,12 @@ private slots:
 private:
     static QString _secondsToHMS(uint32_t seconds);
 
+    /// Sentinel for _playheadSecs meaning "no playhead yet", so a t=0 update is never deduped
+    static constexpr int64_t kNoPlayhead = -1;
+
     bool _isPlaying = false;
     qreal _percentComplete = 0;
-    uint32_t _playheadSecs = 0;
+    int64_t _playheadSecs = kNoPlayhead;
     qreal _playbackSpeed = 1;
     QString _playheadTime;
     QString _totalTime;

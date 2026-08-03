@@ -1,9 +1,10 @@
 #include "QGCMapPolygonTest.h"
 
 #include <QtCore/QCoreApplication>
-#include <QtTest/QSignalSpy>
+#include <QtCore/QRegularExpression>
 
 #include "CoordFixtures.h"
+#include "UnitTestCoords.h"
 #include "MultiSignalSpy.h"
 #include "QGCMapPolygon.h"
 #include "QGCQGeoCoordinate.h"
@@ -20,10 +21,10 @@ void QGCMapPolygonTest::init()
     _mapPolygon = new QGCMapPolygon(this);
     _pathModel = _mapPolygon->qmlPathModel();
     QVERIFY(_pathModel);
-    _multiSpyPolygon = new MultiSignalSpy();
+    _multiSpyPolygon = std::make_unique<MultiSignalSpy>();
     QVERIFY(_multiSpyPolygon->init(_mapPolygon,
                                    {"countChanged", "pathChanged", "dirtyChanged", "cleared", "centerChanged"}));
-    _multiSpyModel = new MultiSignalSpy();
+    _multiSpyModel = std::make_unique<MultiSignalSpy>();
     QVERIFY(_multiSpyModel->init(_pathModel, {"countChanged", "dirtyChanged"}));
 }
 
@@ -31,10 +32,8 @@ void QGCMapPolygonTest::cleanup()
 {
     delete _mapPolygon;
     _mapPolygon = nullptr;
-    delete _multiSpyPolygon;
-    _multiSpyPolygon = nullptr;
-    delete _multiSpyModel;
-    _multiSpyModel = nullptr;
+    _multiSpyPolygon.reset();
+    _multiSpyModel.reset();
     UnitTest::cleanup();
 }
 
@@ -88,15 +87,13 @@ void QGCMapPolygonTest::_testVertexManipulation()
         _mapPolygon->appendVertex(_polyPoints[i]);
         QCoreApplication::processEvents();
         if (i >= 2) {
-            QVERIFY2(_multiSpyPolygon->onlyEmittedOnceByMask(
-                         _multiSpyPolygon->mask("pathChanged", "dirtyChanged", "countChanged", "centerChanged")),
+            QVERIFY2(_multiSpyPolygon->onlyEmittedOnce("pathChanged", "dirtyChanged", "countChanged", "centerChanged"),
                      qPrintable(_multiSpyPolygon->summary()));
         } else {
-            QVERIFY2(_multiSpyPolygon->onlyEmittedOnceByMask(
-                         _multiSpyPolygon->mask("pathChanged", "dirtyChanged", "countChanged")),
+            QVERIFY2(_multiSpyPolygon->onlyEmittedOnce("pathChanged", "dirtyChanged", "countChanged"),
                      qPrintable(_multiSpyPolygon->summary()));
         }
-        QVERIFY(_multiSpyModel->onlyEmittedOnceByMask(_multiSpyModel->mask("dirtyChanged", "countChanged")));
+        QVERIFY(_multiSpyModel->onlyEmittedOnce("dirtyChanged", "countChanged"));
         QCOMPARE(_multiSpyPolygon->argument<int>("countChanged"), i + 1);
         QCOMPARE(_multiSpyModel->argument<int>("countChanged"), i + 1);
         QVERIFY(_mapPolygon->dirty());
@@ -118,8 +115,7 @@ void QGCMapPolygonTest::_testVertexManipulation()
     QGeoCoordinate adjustCoord(_polyPoints[1].latitude() + 1, _polyPoints[1].longitude() + 1);
     _mapPolygon->adjustVertex(1, adjustCoord);
     QCoreApplication::processEvents();
-    QVERIFY(_multiSpyPolygon->onlyEmittedOnceByMask(
-        _multiSpyPolygon->mask("pathChanged", "dirtyChanged", "centerChanged")));
+    QVERIFY(_multiSpyPolygon->onlyEmittedOnce("pathChanged", "dirtyChanged", "centerChanged"));
     QVERIFY(_multiSpyModel->onlyEmittedOnce("dirtyChanged"));
     QCOMPARE(coordSpy.count(), 1);
     QCOMPARE(coordDirtySpy.count(), 1);
@@ -136,9 +132,8 @@ void QGCMapPolygonTest::_testVertexManipulation()
     _multiSpyModel->clearAllSignals();
     // Vertex removal testing
     _mapPolygon->removeVertex(1);
-    QVERIFY(_multiSpyPolygon->onlyEmittedByMask(
-        _multiSpyPolygon->mask("pathChanged", "dirtyChanged", "countChanged", "centerChanged")));
-    QVERIFY(_multiSpyModel->onlyEmittedOnceByMask(_multiSpyModel->mask("dirtyChanged", "countChanged")));
+    QVERIFY(_multiSpyPolygon->onlyEmitted("pathChanged", "dirtyChanged", "countChanged", "centerChanged"));
+    QVERIFY(_multiSpyModel->onlyEmittedOnce("dirtyChanged", "countChanged"));
     QCOMPARE(_mapPolygon->count(), 3);
     polyList = _mapPolygon->path();
     QCOMPARE(polyList.count(), 3);
@@ -151,9 +146,8 @@ void QGCMapPolygonTest::_testVertexManipulation()
     QCOMPARE(_pathModel->value<QGCQGeoCoordinate*>(2)->coordinate(), _polyPoints[3]);
     // Clear testing
     _mapPolygon->clear();
-    QVERIFY(_multiSpyPolygon->onlyEmittedByMask(
-        _multiSpyPolygon->mask("pathChanged", "dirtyChanged", "countChanged", "centerChanged", "cleared")));
-    QVERIFY(_multiSpyModel->onlyEmittedByMask(_multiSpyModel->mask("dirtyChanged", "countChanged")));
+    QVERIFY(_multiSpyPolygon->onlyEmitted("pathChanged", "dirtyChanged", "countChanged", "centerChanged", "cleared"));
+    QVERIFY(_multiSpyModel->onlyEmitted("dirtyChanged", "countChanged"));
     QVERIFY(_mapPolygon->dirty());
     QVERIFY(_pathModel->dirty());
     QCOMPARE(_mapPolygon->count(), 0);
@@ -165,9 +159,15 @@ void QGCMapPolygonTest::_testVertexManipulation()
 void QGCMapPolygonTest::_testKMLLoad()
 {
     QVERIFY(_mapPolygon->loadKMLOrSHPFile(QStringLiteral(":/unittest/PolygonGood.kml")));
+    expectAppMessage(QRegularExpression("KML file load failed.*PolygonBadXml"));
     QVERIFY(!_mapPolygon->loadKMLOrSHPFile(QStringLiteral(":/unittest/PolygonBadXml.kml")));
+    verifyExpectedLogMessage();
+    expectAppMessage(QRegularExpression("KML file load failed.*Unable to find Polygon"));
     QVERIFY(!_mapPolygon->loadKMLOrSHPFile(QStringLiteral(":/unittest/PolygonMissingNode.kml")));
+    verifyExpectedLogMessage();
+    expectAppMessage(QRegularExpression("KML file load failed.*PolygonBadCoordinatesNode"));
     QVERIFY(!_mapPolygon->loadKMLOrSHPFile(QStringLiteral(":/unittest/PolygonBadCoordinatesNode.kml")));
+    verifyExpectedLogMessage();
 }
 
 void QGCMapPolygonTest::_testSelectVertex()
@@ -179,7 +179,9 @@ void QGCMapPolygonTest::_testSelectVertex()
     QVERIFY(_mapPolygon->count() == _polyPoints.count());
     _mapPolygon->selectVertex(-1);
     QVERIFY(_mapPolygon->selectedVertex() == -1);
+    expectLogMessage("QMLControls.QGCMapPolygon", QtWarningMsg, QRegularExpression("Selected vertex index.*out of bounds"));
     _mapPolygon->selectVertex(_polyPoints.count());
+    verifyExpectedLogMessage();
     QVERIFY(_mapPolygon->selectedVertex() == -1);
     _mapPolygon->selectVertex(_polyPoints.count() - 1);
     QVERIFY(_mapPolygon->selectedVertex() == _polyPoints.count() - 1);

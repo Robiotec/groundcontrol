@@ -5,7 +5,13 @@ on:
     branches:
       - master
       - 'Stable*'
+    paths-ignore:
+      - 'docs/**'
+      - 'translations/**'
   pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - 'translations/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -25,9 +31,10 @@ jobs:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 1
+          persist-credentials: false
 
       - name: Get build config
         id: config
@@ -38,20 +45,6 @@ jobs:
         with:
           groups: precommit
           python-version: '3.12'
-
-      - name: Restore pre-commit cache (PR)
-        if: github.event_name == 'pull_request'
-        uses: actions/cache/restore@v5
-        with:
-          path: ~/.cache/pre-commit
-          key: pre-commit-3|${{ env.pythonLocation }}|${{ hashFiles('.pre-commit-config.yaml') }}
-
-      - name: Cache pre-commit hooks (push)
-        if: github.event_name != 'pull_request'
-        uses: actions/cache@v5
-        with:
-          path: ~/.cache/pre-commit
-          key: pre-commit-3|${{ env.pythonLocation }}|${{ hashFiles('.pre-commit-config.yaml') }}
 
       - name: Install Qt (for qmllint)
         uses: ./.github/actions/qt-install
@@ -94,3 +87,11 @@ jobs:
           name: pre-commit-results
           path: pre-commit-results
           retention-days: 7
+
+      # Hook failures are surfaced via the PR comment; only fail the job when
+      # the runner script itself didn't complete (no exit_code output written).
+      - name: Fail job on pre-commit script crash
+        if: always() && steps.pre-commit.outcome == 'failure' && steps.pre-commit.outputs.exit_code == ''
+        run: |
+          echo "::error::pre-commit runner crashed before writing results"
+          exit 1

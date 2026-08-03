@@ -1,20 +1,18 @@
 #pragma once
 
-#include <QtCore/QLoggingCategory>
-#include <QtCore/QJsonArray>
-#include <QtCore/QJsonObject>
+#include <QtCore/QHash>
 #include <QtCore/QObject>
 #include <QtCore/QString>
 #include <QtCore/QVariant>
 #include <QtQmlIntegration/QtQmlIntegration>
 
-Q_DECLARE_LOGGING_CATEGORY(FactMetaDataLog)
-
 class SettingsManager;
 
-/// Holds the meta data associated with a Fact. This is kept in a separate object from the Fact itself
-/// since you may have multiple instances of the same Fact. But there is only ever one FactMetaData
-/// instance or each Fact.
+/// \brief Holds the meta data associated with a Fact.
+///
+/// This is kept in a separate object from the Fact itself since you may have multiple instances
+/// of the same Fact. But there is only ever one FactMetaData instance for each Fact.
+
 class FactMetaData : public QObject
 {
     Q_OBJECT
@@ -47,7 +45,7 @@ public:
     //  @return Error string for failed validation explanation to user. Empty string indicates no error.
     typedef QString (*CustomCookedValidator)(const QVariant &cookedValue);
 
-    typedef QMap<QString /* param Name */, FactMetaData*> NameToMetaDataMap_t;
+    typedef QHash<QString /* param Name */, FactMetaData*> NameToMetaDataMap_t;
 
     explicit FactMetaData(QObject *parent = nullptr);
     explicit FactMetaData(ValueType_t type, QObject *parent = nullptr);
@@ -117,6 +115,12 @@ public:
     static QStringList splitTranslatedList(const QString &translatedList);
 
     int decimalPlaces() const;
+
+    /// Maximum string length for valueTypeString facts. 0 means no limit.
+    int maxStringLength() const { return _maxStringLength; }
+    /// Negative values are invalid (they would silently disable length validation): warns and clamps to 0.
+    void setMaxStringLength(int maxStringLength);
+
     QVariant rawDefaultValue() const;
     QVariant cookedDefaultValue() const { return _rawTranslator(rawDefaultValue()); }
     bool defaultValueAvailable() const { return _defaultValueAvailable; }
@@ -138,6 +142,7 @@ public:
     QVariant cookedUserMin() const;
     QVariant cookedUserMax() const;
     QString name() const { return _name; }
+    QString label() const { return _label; }
     QString shortDescription() const { return _shortDescription; }
     ValueType_t type() const { return _type; }
     QString rawUnits() const { return _rawUnits; }
@@ -168,6 +173,14 @@ public:
 
     void setDecimalPlaces(int decimalPlaces) { _decimalPlaces = decimalPlaces; }
     void setRawDefaultValue(const QVariant &rawDefaultValue);
+
+    /// Use when the default value comes from authoritative firmware data
+    /// (e.g. ArduPilot FTP parameter file). Sets the default unconditionally
+    /// without range validation — firmware may legitimately use values outside
+    /// the metadata operating range (e.g. 0 as a "disabled" sentinel).
+    /// Do NOT use for user-supplied or QGC-settings defaults.
+    void setRawDefaultValueFirmwareForce(const QVariant &rawDefaultValue);
+
     void setBitmaskInfo(const QStringList &strings, const QVariantList &values);
     void setEnumInfo(const QStringList &strings, const QVariantList &values);
     void setCategory(const QString &category) { _category = category; }
@@ -178,6 +191,7 @@ public:
     void setRawUserMin(const QVariant &rawUserMin);
     void setRawUserMax(const QVariant &rawUserMax);
     void setName(const QString &name) { _name = name; }
+    void setLabel(const QString &label) { _label = label; }
     void setShortDescription(const QString &shortDescription) { _shortDescription = shortDescription; }
     void setRawUnits(const QString &rawUnits);
     void setVehicleRebootRequired(bool rebootRequired) { _vehicleRebootRequired = rebootRequired; }
@@ -326,6 +340,7 @@ private:
 
     ValueType_t _type = valueTypeInt32; // must be first for correct constructor init
     int _decimalPlaces = kUnknownDecimalPlaces;
+    int _maxStringLength = 0;
     QVariant _rawDefaultValue = 0;
     bool _defaultValueAvailable = false;
     QStringList _bitmaskStrings;
@@ -340,6 +355,7 @@ private:
     QVariant _rawUserMin;   // Specifically left as unset by default to indicate no user min
     QVariant _rawUserMax;   // Specifically left as unset by default to indicate no user max
     QString _name;
+    QString _label;
     QString _shortDescription;
     QString _rawUnits;
     QString _cookedUnits;
@@ -429,7 +445,11 @@ private:
     };
 
     static constexpr const char *_decimalPlacesJsonKey = "decimalPlaces";
+    static constexpr const char *_maxStringLengthJsonKey = "maxStringLength";
+    static constexpr const char *_commentJsonKey = "comment";
+    static constexpr const char *_keywordsJsonKey = "keywords";
     static constexpr const char *_nameJsonKey = "name";
+    static constexpr const char *_labelJsonKey = "label";
     static constexpr const char *_typeJsonKey = "type";
     static constexpr const char *_shortDescriptionJsonKey = "shortDesc";
     static constexpr const char *_longDescriptionJsonKey = "longDesc";
@@ -447,4 +467,5 @@ private:
     static constexpr const char *_categoryJsonKey = "category";
     static constexpr const char *_groupJsonKey = "group";
     static constexpr const char *_volatileJsonKey = "volatile";
+    static constexpr const char *_readOnlyJsonKey = "readOnly";
 };

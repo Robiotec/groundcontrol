@@ -6,92 +6,90 @@ Instructions for AI coding agents (Codex, Claude Code, etc.) working on QGroundC
 
 - [CODING_STYLE.md](CODING_STYLE.md) — Naming, formatting, C++20 features, QML style, logging
 - [.github/CONTRIBUTING.md](.github/CONTRIBUTING.md) — Architecture patterns (Fact System, Multi-Vehicle, FirmwarePlugin)
-- [.github/copilot-instructions.md](.github/copilot-instructions.md) — Code structure, CI structure, quick patterns
 - [tools/README.md](tools/README.md) — Development scripts and tooling
+- [test/README.md](test/README.md) — Test framework, base classes, CTest labels, MultiSignalSpy, coverage
+- [.github/ci-overview.md](.github/ci-overview.md) — CI workflow/action/script layout and conventions
+- [.pre-commit-config.yaml](.pre-commit-config.yaml) — All enforced linters (clang-format, clang-tidy, ruff, pyright, shellcheck, actionlint, zizmor, qmllint, clazy, vehicle-null-check, check-no-qassert, check-no-qtest-ignore-message)
+
+## Golden Rules (enforced — violations fail CI)
+
+These are the non-negotiables. The first four are QGC's core architecture patterns; the rest are
+enforced by pre-commit hooks, so ignoring them wastes a build cycle. Full list with code examples:
+[.github/CONTRIBUTING.md#architecture-patterns](.github/CONTRIBUTING.md#architecture-patterns) and
+[CODING_STYLE.md#common-pitfalls](CODING_STYLE.md#common-pitfalls).
+
+- **Fact System** — ALL vehicle parameters flow through Facts; never create custom parameter storage.
+- **Multi-Vehicle** — ALWAYS null-check `activeVehicle()` / `Vehicle*` before dereferencing (`vehicle-null-check`).
+- **Firmware Plugin** — use `vehicle->firmwarePlugin()` for firmware-specific behavior, not `if (px4)` branches.
+- **QML Integration** — register types with `QML_ELEMENT`/`QML_SINGLETON`/`QML_UNCREATABLE`; expose state via `Q_PROPERTY`.
+- **No `Q_ASSERT` in production code** — use defensive checks with early returns (`check-no-qassert`).
+- **No `QTest::ignoreMessage`** in tests — use `expectLogMessage`/`ignoreLogMessage` (`check-no-qtest-ignore-message`).
+- **No fixed-delay `QTest::qWait(<n>)`** — use `QTRY_*_WITH_TIMEOUT` or `QSignalSpy::wait` (`check-no-fixed-qwait`).
+
+## Critical Files (Read First!)
+
+1. `src/FactSystem/Fact.h` — Parameter system foundation
+2. `src/Vehicle/Vehicle.h` — Core vehicle model
+3. `src/FirmwarePlugin/FirmwarePlugin.h` — Firmware abstraction
+
+## Code Structure
+
+Key modules (full tree under `src/` — ~33 subdirectories):
+
+```text
+src/
+├── Vehicle/          # Vehicle state/comms
+├── Comms/            # Link layer (serial, UDP, TCP, Bluetooth)
+├── FactSystem/       # Parameter management
+├── FirmwarePlugin/   # PX4/ArduPilot abstraction
+├── AutoPilotPlugins/ # Vehicle setup UI
+├── MissionManager/   # Mission planning
+├── MAVLink/          # Protocol handling
+├── VideoManager/     # Video pipeline (GStreamer)
+├── FlyView/          # In-flight UI
+├── PlanView/         # Mission planning UI
+├── QmlControls/      # Reusable QML components
+└── Settings/         # Persistent settings
+```
 
 ## Build & Test Commands
 
+The `just` recipes are the canonical workflow — see [tools/README.md](tools/README.md) for the full list.
+[.github/ci-overview.md](.github/ci-overview.md) documents how CI invokes builds and tests; match CI, don't guess.
+
 ```bash
-# Configure (Release)
-cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-
-# Build
-cmake --build build --config Release --parallel
-
-# Run unit tests
-cd build && ctest --output-on-failure -L Unit --parallel $(nproc)
-
-# Lint (pre-commit hooks)
-pre-commit run --all-files
-
-# Format C++
-clang-format -i path/to/changed/files.cc
-
-# CI Python script tests
-cd .github/scripts && PYTHONPATH=. python3 -m pytest tests/ -q
-
-# Tools Python tests
-cd tools && uv run --extra scripts --extra test pytest tests/ -q
+just configure          # CMake configure (pulls submodules first)
+just build              # incremental build; uses all cores (override with JOBS=N)
+just test               # ctest, LABELS="Unit|Integration" EXCLUDE="Flaky|Network"
+just lint               # fast pre-commit gate (clang-format, ruff, qmllint, ...)
+just check              # lint + test (run before declaring done)
+just format-fix         # apply clang-format / ruff-format
+just info               # print resolved versions (Qt, CMake, GStreamer)
 ```
 
-## Golden Rules
+- **Build incrementally** — rebuild every few file edits during multi-file C++/Qt work, not just at the end; fix build errors before continuing.
+- **Tight test loops** — iterate one test with `ctest -R <name>` (or `--gtest_filter`); only run the full label on the final pass. CI runs `ctest --output-on-failure -L Unit`.
+- **Match CI** — before running tests/lint locally, use the same command CI runs ([.github/ci-overview.md](.github/ci-overview.md)), not a local guess.
 
-1. **Fact System**: ALL vehicle parameters use Facts. Never create custom parameter storage.
-2. **Multi-Vehicle**: ALWAYS null-check `MultiVehicleManager::instance()->activeVehicle()`
-3. **Firmware Plugin**: Use `vehicle->firmwarePlugin()` for firmware-specific behavior.
-4. **QML Sizing**: Use `ScreenTools.defaultFontPixelHeight/Width`, never hardcoded values.
-5. **QML Colors**: Use `QGCPalette`, never hardcoded colors.
-6. **Match existing style**: Follow conventions of surrounding code. See CODING_STYLE.md.
+## Definition of Done
 
-## Project Layout
+Before considering a change complete:
 
-```
-src/                    # C++/QML application source
-├── Vehicle/            # Vehicle state and communications
-├── FactSystem/         # Parameter management (Fact, FactGroup, FactMetaData)
-├── FirmwarePlugin/     # PX4/ArduPilot abstraction
-├── MissionManager/     # Mission planning
-├── MAVLink/            # Protocol handling
-├── QmlControls/        # Reusable QML components
-└── Settings/           # Persistent settings
+1. `just build` succeeds.
+2. `just lint` (or `pre-commit run --all-files` for the full sweep) passes.
+3. Relevant tests pass (`ctest -R <name>` for the touched area; full `-L Unit` on the final pass).
+4. Commit message follows Conventional Commits (below).
 
-tools/                  # Development scripts and shared Python modules
-├── common/             # Shared Python modules (gh_actions, build_config, etc.)
-├── setup/              # Environment setup scripts
-├── analyzers/          # Static analysis tools
-└── pyproject.toml      # Python dependencies (uv)
+## Commit & Review Conventions
 
-.github/
-├── workflows/          # CI workflows (linux, macos, windows, android, ios)
-├── actions/            # Composite actions (cmake-build, run-unit-tests, etc.)
-├── scripts/            # CI-specific Python scripts
-│   ├── common/         # Shared CI modules
-│   └── templates/      # Jinja2 templates
-└── build-config.json   # Centralized version numbers
-```
+Commit messages follow **Conventional Commits** — the type drives release automation
+(`.releaserc.json` → semantic-release). Use: `feat`, `fix`, `perf`, `revert` (release-triggering);
+`docs`, `style`, `chore`, `refactor`, `test`, `build`, `ci` (no release). Example: `fix(Vehicle): guard null activeVehicle in telemetry handler`.
 
-## CI Conventions
+Your output will be reviewed by another AI agent before being accepted. Keep changes focused and
+minimal, use clear naming, and leave explanatory commit messages. Avoid unrelated changes,
+commented-out code, or ambiguous TODOs.
 
-- Platform workflows share logic via composite actions and reusable workflows.
-- CI Python scripts use `httpx` for GitHub API and `jinja2` for templating.
-- Bootstrap scripts (`install_dependencies.py`, `ccache_helper.py`) use stdlib only.
-- Version numbers live in `.github/build-config.json`.
-- Use `common.gh_actions.write_github_output()` for `$GITHUB_OUTPUT` writes.
+---
 
-## C++ Key Patterns
-
-```cpp
-// Always null-check vehicle
-Vehicle* vehicle = MultiVehicleManager::instance()->activeVehicle();
-if (!vehicle) return;
-
-// Access parameters via Fact System
-Fact* param = vehicle->parameterManager()->getParameter(-1, "PARAM_NAME");
-if (param) param->setCookedValue(newValue);
-```
-
-```qml
-// QML vehicle access
-property var vehicle: QGroundControl.multiVehicleManager.activeVehicle
-enabled: vehicle && vehicle.armed
-```
+**Key Principle**: Match the style of code you're editing. See [CODING_STYLE.md](CODING_STYLE.md) for conventions and [CODING_STYLE.md#examples](CODING_STYLE.md#examples) for canonical Vehicle/Fact/QML snippets.

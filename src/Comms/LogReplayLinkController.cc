@@ -1,4 +1,6 @@
 #include "LogReplayLinkController.h"
+
+#include "LogReplayLink.h"
 #include "QGCLoggingCategory.h"
 
 QGC_LOGGING_CATEGORY(LogReplayLinkControllerLog, "Comms.LogReplayLinkController")
@@ -17,8 +19,8 @@ LogReplayLinkController::~LogReplayLinkController()
 void LogReplayLinkController::setLink(LogReplayLink *link)
 {
     if (_link) {
-        (void) disconnect(_link);
-        (void) disconnect(this, &LogReplayLinkController::playbackSpeedChanged, _link, &LogReplayLink::setPlaybackSpeed);
+        (void) QObject::disconnect(_link, nullptr, this, nullptr);  // link signals -> this
+        (void) QObject::disconnect(this, nullptr, _link, nullptr);  // this signals -> link (playbackSpeedChanged)
 
         _isPlaying = false;
         emit isPlayingChanged(_isPlaying);
@@ -26,6 +28,7 @@ void LogReplayLinkController::setLink(LogReplayLink *link)
         _percentComplete = 0;
         emit percentCompleteChanged(_percentComplete);
 
+        _playheadSecs = kNoPlayhead;
         _playheadTime.clear();
         emit playheadTimeChanged(_playheadTime);
 

@@ -9,16 +9,15 @@ void CameraCalcTest::init()
     _cameraCalc = new CameraCalc(planController(), "CameraCalcUnitTest" /* settingsGroup */, this);
     _cameraCalc->setCameraBrand(CameraCalc::canonicalCustomCameraName());
     _cameraCalc->setDirty(false);
-    _multiSpy = new MultiSignalSpy();
+    _multiSpy = std::make_unique<MultiSignalSpy>();
     QVERIFY(_multiSpy->init(_cameraCalc));
 }
 
 void CameraCalcTest::cleanup()
 {
     delete _cameraCalc;
-    delete _multiSpy;
+    _multiSpy.reset();
     _cameraCalc = nullptr;
-    _multiSpy = nullptr;
     OfflineMissionTest::cleanup();
 }
 
@@ -43,7 +42,7 @@ void CameraCalcTest::_testDirty()
             << _cameraCalc->frontalOverlap() << _cameraCalc->sideOverlap() << _cameraCalc->adjustedFootprintSide()
             << _cameraCalc->adjustedFootprintFrontal();
     for (Fact* fact : rgFacts) {
-        qDebug() << fact->name();
+        qCDebug(UnitTestLog) << fact->name();
         QVERIFY(!_cameraCalc->dirty());
         if (fact->typeIsBool()) {
             fact->setRawValue(!fact->rawValue().toBool());

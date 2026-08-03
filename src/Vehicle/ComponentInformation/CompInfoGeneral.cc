@@ -1,7 +1,7 @@
 #include "CompInfoGeneral.h"
 #include "ComponentInformationManager.h"
-#include "JsonHelper.h"
 #include "JsonParsing.h"
+#include "JsonSchemaValidator.h"
 #include "QGCLoggingCategory.h"
 
 #include <QtCore/QJsonDocument>
@@ -38,18 +38,24 @@ void CompInfoGeneral::setJson(const QString& metadataJsonFileName)
         qCWarning(CompInfoGeneralLog) << "Metadata json file open failed: compid:" << compId << errorString;
         return;
     }
+
+    QString schemaError;
+    if (!JsonSchemaValidator::validate(jsonDoc, QStringLiteral(":/json/component_metadata/general.schema.json"), schemaError)) {
+        qCWarning(CompInfoGeneralLog) << "Metadata json schema validation failed: compid:" << compId << schemaError;
+    }
+
     QJsonObject jsonObj = jsonDoc.object();
 
-    QList<JsonHelper::KeyValidateInfo> keyInfoList = {
-        { JsonHelper::jsonVersionKey,           QJsonValue::Double, true },
+    QList<JsonParsing::KeyValidateInfo> keyInfoList = {
+        { JsonParsing::jsonVersionKey,           QJsonValue::Double, true },
         { _jsonMetadataTypesKey,   QJsonValue::Array,  true },
     };
-    if (!JsonHelper::validateKeys(jsonObj, keyInfoList, errorString)) {
+    if (!JsonParsing::validateKeys(jsonObj, keyInfoList, errorString)) {
         qCWarning(CompInfoGeneralLog) << "Metadata json validation failed: compid:" << compId << errorString;
         return;
     }
 
-    int version = jsonObj[JsonHelper::jsonVersionKey].toInt();
+    int version = jsonObj[JsonParsing::jsonVersionKey].toInt();
     if (version != 1) {
         qCWarning(CompInfoGeneralLog) << "Metadata json unsupported version" << version;
         return;
@@ -73,7 +79,7 @@ void CompInfoGeneral::setJson(const QString& metadataJsonFileName)
         if (uris.uriMetaData.isEmpty() || !uris.crcMetaDataValid) {
             // The CRC is optional for dynamically updated metadata, and once we want to support that this logic needs
             // to be updated.
-            qCDebug(ComponentInformationManagerLog) << "Metadata missing fields: type:uri:crcValid" << metadataType <<
+            qCDebug(CompInfoGeneralLog) << "Metadata missing fields: type:uri:crcValid" << metadataType <<
                     uris.uriMetaData << uris.crcMetaDataValid;
             continue;
         }

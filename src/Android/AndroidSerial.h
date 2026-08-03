@@ -1,12 +1,9 @@
 #pragma once
 
 #include <QtCore/QByteArray>
-#include <QtCore/QLoggingCategory>
 #include <QtCore/QString>
 #include <qserialport.h>
 #include <qserialportinfo.h>
-
-Q_DECLARE_LOGGING_CATEGORY(AndroidSerialLog);
 
 class QSerialPortPrivate;
 
@@ -58,6 +55,13 @@ constexpr char CHAR_XON = 17;
 constexpr char CHAR_XOFF = 19;
 
 constexpr const char* kJniUsbSerialManagerClassName = "org/mavlink/qgroundcontrol/QGCUsbSerialManager";
+
+// POSIX serial backend (devices which expose accessible /dev/tty* nodes, e.g. rooted devices).
+// The backend is selected once at startup from the androidUsePosixSerial app setting.
+void setUsePosixSerial(bool use);
+bool usePosixSerial();
+bool hasPosixSerialPorts();
+QList<QSerialPortInfo> availablePosixPorts();
 
 void setNativeMethods();
 QList<QSerialPortInfo> availableDevices();

@@ -14,9 +14,7 @@ Item {
 
     property double _ar:                (cameraLoader.visible && cameraLoader.status === Loader.Ready)
                                             ? cameraLoader.item.implicitWidth / cameraLoader.item.implicitHeight
-                                            : QGroundControl.videoManager.gstreamerEnabled
-                                                ? QGroundControl.videoManager.videoSize.width / QGroundControl.videoManager.videoSize.height
-                                                : QGroundControl.videoManager.aspectRatio
+                                            : QGroundControl.videoManager.aspectRatio
     property bool   _showGrid:          QGroundControl.settingsManager.videoSettings.gridLines.rawValue
     property var    _dynamicCameras:    globals.activeVehicle ? globals.activeVehicle.cameraManager : null
     property bool   _connected:         globals.activeVehicle ? !globals.activeVehicle.communicationLost : false
@@ -103,42 +101,25 @@ Item {
             }
             return root.height
         }
-        Component {
-            id: videoBackgroundComponent
-            QGCVideoBackground {
-                id:             videoContent
-                objectName:     "videoContent"
-
-                Connections {
-                    target: QGroundControl.videoManager
-                    function onImageFileChanged(filename) {
-                        videoContent.grabToImage(function(result) {
-                            if (!result.saveToFile(filename)) {
-                                console.error('Error capturing video frame');
-                            }
-                        });
-                    }
-                }
-
-            }
-        }
         Loader {
-            // GStreamer is causing crashes on Lenovo laptop OpenGL Intel drivers. In order to workaround this
-            // we don't load a QGCVideoBackground object when video is disabled. This prevents any video rendering
-            // code from running. Hence the Loader to completely remove it.
             id:                 videoStreamLoader
             anchors.fill:       videoContentArea
             visible:            _showStreamLoader
-            sourceComponent:    videoBackgroundComponent
+            sourceComponent:    videoOutputComponent
 
             property bool videoDisabled: QGroundControl.settingsManager.videoSettings.videoSource.rawValue === QGroundControl.settingsManager.videoSettings.disabledVideoSource
+        }
+        Component {
+            id: videoOutputComponent
+            FlightDisplayViewVideoOutput {
+            }
         }
         //-- UVC Video (USB Camera or Video Device)
         Loader {
             id:             cameraLoader
             anchors.fill:   videoContentArea
             visible:        _showUvcLoader
-            source:         QGroundControl.videoManager.uvcEnabled ? "qrc:/qml/QGroundControl/FlyView/FlightDisplayViewUVC.qml" : "qrc:/qml/QGroundControl/FlyView//FlightDisplayViewDummy.qml"
+            source:         _showUvcLoader ? "qrc:/qml/QGroundControl/FlyView/FlightDisplayViewUVC.qml" : "qrc:/qml/QGroundControl/FlyView/FlightDisplayViewDummy.qml"
         }
 
         Item {
@@ -186,7 +167,7 @@ Item {
             width:              height * QGroundControl.videoManager.thermalAspectRatio
             height:             _camera ? (_camera.thermalMode === MavlinkCameraControlInterface.THERMAL_FULL ? parent.height : (_camera.thermalMode === MavlinkCameraControlInterface.THERMAL_PIP ? ScreenTools.defaultFontPixelHeight * 12 : parent.height * _thermalHeightFactor)) : 0
             anchors.centerIn:   parent
-            visible:            QGroundControl.videoManager.hasThermal && _camera.thermalMode !== MavlinkCameraControlInterface.THERMAL_OFF
+            visible:            QGroundControl.videoManager.hasThermal && _camera && _camera.thermalMode !== MavlinkCameraControlInterface.THERMAL_OFF
             function pipOrNot() {
                 if(_camera) {
                     if(_camera.thermalMode === MavlinkCameraControlInterface.THERMAL_PIP) {
@@ -211,11 +192,17 @@ Item {
             onVisibleChanged: {
                 thermalItem.pipOrNot()
             }
-            QGCVideoBackground {
+            Loader {
                 id:             thermalVideo
-                objectName:     "thermalVideo"
                 anchors.fill:   parent
                 opacity:        _camera ? (_camera.thermalMode === MavlinkCameraControlInterface.THERMAL_BLEND ? _camera.thermalOpacity / 100 : 1.0) : 0
+                sourceComponent: thermalOutputComponent
+                onLoaded: { if (item) item.objectName = "thermalVideo" }
+
+                Component {
+                    id: thermalOutputComponent
+                    FlightDisplayViewVideoOutput {}
+                }
             }
         }
         //-- Zoom

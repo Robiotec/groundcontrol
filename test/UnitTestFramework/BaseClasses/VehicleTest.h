@@ -1,6 +1,6 @@
 #pragma once
 
-#include "MAVLinkLib.h"
+#include "MAVLinkMessageType.h"
 #include "MockLink.h"
 #include "UnitTest.h"
 
@@ -60,6 +60,7 @@ inline void addAutopilotRows()
 class VehicleTest : public UnitTest
 {
     Q_OBJECT
+    Q_DISABLE_COPY_MOVE(VehicleTest)
 
 public:
     explicit VehicleTest(QObject* parent = nullptr);
@@ -131,20 +132,20 @@ protected:
     /// Connects a MockLink vehicle and waits for initial connect sequence
     /// @param autopilot Autopilot type (PX4, ArduPilot, Generic)
     /// @param failureMode Optional failure mode for testing error handling
+    /// @param options Optional MockConfiguration options
     void _connectMockLink(MAV_AUTOPILOT autopilot = MAV_AUTOPILOT_PX4,
-                          MockConfiguration::FailureMode_t failureMode = MockConfiguration::FailNone);
+                          MockConfiguration::FailureMode_t failureMode = MockConfiguration::FailNone,
+                          MockConfiguration::Options options = MockConfiguration::OptionNone);
 
     /// Connects MockLink without waiting for initial connect sequence
-    void _connectMockLinkNoInitialConnectSequence()
+    void _connectMockLinkNoInitialConnectSequence(MockConfiguration::Options options = MockConfiguration::OptionNone)
     {
-        _connectMockLink(MAV_AUTOPILOT_INVALID);
+        _connectMockLink(MAV_AUTOPILOT_INVALID, MockConfiguration::FailNone, options);
     }
 
     /// Disconnects the current MockLink and waits for vehicle to be removed
     void _disconnectMockLink();
 
-    /// Compares two MissionItems for equality using QCOMPARE/QVERIFY
-    static void _missionItemsEqual(const MissionItem& actual, const MissionItem& expected);
     QString failureContextSummary() const override;
 
     MockLink* _mockLink = nullptr;

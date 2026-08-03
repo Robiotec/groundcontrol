@@ -1,7 +1,7 @@
 #pragma once
 
 #include <QtCore/QElapsedTimer>
-#include <QtCore/QLoggingCategory>
+#include <QtCore/QHash>
 #include <QtCore/QMap>
 #include <QtCore/QObject>
 #include <QtCore/QPointer>
@@ -9,11 +9,10 @@
 #include <QtCore/QVariantList>
 #include <QtQmlIntegration/QtQmlIntegration>
 
-#include "MAVLinkLib.h"
+#include "MAVLinkMessageType.h"
 #include "QmlObjectListModel.h"
-#include "Vehicle.h"
 
-Q_DECLARE_LOGGING_CATEGORY(CameraManagerLog)
+class Vehicle;
 
 class CameraMetaData;
 class Joystick;
@@ -22,7 +21,8 @@ class QGCCameraManagerTest;
 class QGCVideoStreamInfo;
 class SimulatedCameraControl;
 
-/// Camera Manager
+/// \brief Camera Manager
+///
 class QGCCameraManager : public QObject
 {
     Q_OBJECT
@@ -54,12 +54,24 @@ public:
         int retryCount = 0;
         QElapsedTimer lastHeartbeat;
         QTimer backoffTimer;
-        QPointer<Vehicle> vehicle;
+        Vehicle* vehicle;           ///< Raw pointer is safe: CameraStruct is owned by QGCCameraManager which is a child of Vehicle
         QPointer<QGCCameraManager> manager;
 
     private:
         Q_DISABLE_COPY_MOVE(CameraStruct)
     };
+
+    /// Stable context passed as opaque handler data to async camera info request
+    /// callbacks. Owned by the manager and kept alive for its full lifetime so a
+    /// callback firing after the CameraStruct was deleted (lost camera) never
+    /// dereferences freed memory (issue #13251).
+    struct CameraInfoRequestContext {
+        QPointer<QGCCameraManager> manager;
+        uint8_t compID = 0;
+    };
+
+    /// Returns the lazily created, manager-lifetime context for compId.
+    CameraInfoRequestContext* cameraInfoContext(uint8_t compId);
 
     QmlObjectListModel* cameras() { return &_cameras; }
     const QmlObjectListModel* cameras() const { return &_cameras; }
@@ -99,6 +111,9 @@ protected slots:
     void _stepZoom(int direction);
     void _startZoom(int direction);
     void _stopZoom();
+    void _stepFocus(int direction);
+    void _startFocus(int direction);
+    void _stopFocus();
     void _stepCamera(int direction);
     void _stepStream(int direction);
     void _checkForLostCameras();
@@ -128,7 +143,7 @@ private:
     void _addCameraControlToLists(MavlinkCameraControlInterface* cameraControl);
     void _handleCameraFovStatus(const mavlink_message_t& message);
 
-    QPointer<Vehicle> _vehicle;
+    Vehicle* _vehicle;              ///< Raw pointer is safe: QGCCameraManager is a QObject child of Vehicle, so Vehicle always outlives us
     QPointer<SimulatedCameraControl> _simulatedCameraControl;
     QPointer<Joystick> _activeJoystick;
     bool _vehicleReadyState = false;
@@ -137,9 +152,11 @@ private:
     QStringList _cameraLabels;
     int _currentCameraIndex = 0;
     QElapsedTimer _lastZoomChange;
+    QElapsedTimer _lastFocusChange;
     QElapsedTimer _lastCameraChange;
     QTimer _camerasLostHeartbeatTimer;
     QMap<QString, CameraStruct*> _cameraInfoRequest;
+    QHash<uint8_t, CameraInfoRequestContext*> _cameraInfoContexts;
     static QVariantList _cameraList;
     bool _initialConnectComplete = false;
 

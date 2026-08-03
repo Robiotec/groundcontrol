@@ -1,7 +1,9 @@
 #include "AppSettings.h"
 #include "QGCFileHelper.h"
 #include "QGCPalette.h"
+#include "AppMessages.h"
 #include "QGCApplication.h"
+#include "QGCLoggingCategory.h"
 #include "QGCMAVLink.h"
 #include "LinkManager.h"
 
@@ -12,6 +14,8 @@
 #include <QtCore/QStandardPaths>
 #include <QtCore/QDir>
 #include <QtCore/QSettings>
+
+QGC_LOGGING_CATEGORY(AppSettingsLog, "Settings.AppSettings")
 
 // Release languages are 90%+ complete
 QList<QLocale::Language> AppSettings::_rgReleaseLanguages = {
@@ -79,13 +83,13 @@ DECLARE_SETTINGGROUP(App, "")
         #ifdef Q_OS_ANDROID
             if (!androidDontSaveToSDCard()->rawValue().toBool()) {
                 rootDirPath = AndroidInterface::getSDCardPath();
-                qDebug() << "AndroidInterface::getSDCardPath();" << rootDirPath;
+                qCDebug(AppSettingsLog) << "AndroidInterface::getSDCardPath()" << rootDirPath;
                 if (rootDirPath.isEmpty() || !QDir(rootDirPath).exists()) {
                     rootDirPath.clear();
-                    qDebug() << "Save to SD card specified for application data. But no SD card present or permissions not granted. Using internal storage.";
+                    qCWarning(AppSettingsLog) << "Save to SD card specified for application data. But no SD card present or permissions not granted. Using internal storage.";
                 } else if (!QFileInfo(rootDirPath).isWritable()) {
                     rootDirPath.clear();
-                    qgcApp()->showAppMessage(AppSettings::tr("Save to SD card specified for application data. But SD card is write protected. Using internal storage."));
+                    QGC::showAppMessage(AppSettings::tr("Save to SD card specified for application data. But SD card is write protected. Using internal storage."));
                 }
             }
         #endif
@@ -94,10 +98,10 @@ DECLARE_SETTINGGROUP(App, "")
         }
         savePathFact->setRawValue(QDir(rootDirPath).filePath(appName));
     #endif
-    savePathFact->setVisible(false);
+    savePathFact->setUserVisible(false);
 #else
         QDir rootDir;
-        if (qgcApp()->runningUnitTests() || qgcApp()->simpleBootTest()) {
+        if (QGC::runningUnitTests() || qgcApp()->simpleBootTest()) {
             rootDir = QDir(QStandardPaths::writableLocation(QStandardPaths::TempLocation));
         } else {
             rootDir = QDir(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation));
@@ -109,9 +113,42 @@ DECLARE_SETTINGGROUP(App, "")
     connect(savePathFact, &Fact::rawValueChanged, this, &AppSettings::savePathsChanged);
     connect(savePathFact, &Fact::rawValueChanged, this, &AppSettings::_checkSavePathDirectories);
 
+#ifdef Q_OS_ANDROID
+    // React to runtime toggling of the SD card setting
+    connect(androidDontSaveToSDCard(), &Fact::rawValueChanged, this, [this, appName](QVariant value) {
+        Fact* const fact = savePath();
+        if (value.toBool()) {
+            const QString internalBasePath = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
+            fact->setRawValue(QDir(internalBasePath).filePath(appName));
+        } else {
+            // If permission is already granted this returns the SD card root and we set the path here.
+            // If not, it returns empty and launches the system permission UI. The result comes back through
+            // jniStoragePermissionsResult, which sets the SD card save path (or reverts this setting on denial).
+            const QString sdRootPath = AndroidInterface::getSDCardPath();
+            if (!sdRootPath.isEmpty() && QDir(sdRootPath).exists() && QFileInfo(sdRootPath).isWritable()) {
+                fact->setRawValue(QDir(sdRootPath).filePath(appName));
+            }
+        }
+    });
+#endif
+
     _checkSavePathDirectories();
+
+    // When a specific preferred firmware/vehicle is chosen, keep the offline editing settings in sync
+    connect(preferredFirmwareClass(), &Fact::rawValueChanged, this, [this](QVariant value) {
+        if (value.toUInt() != 0) {
+            offlineEditingFirmwareClass()->setRawValue(value);
+        }
+    });
+    connect(preferredVehicleClass(), &Fact::rawValueChanged, this, [this](QVariant value) {
+        if (value.toUInt() != 0) {
+            offlineEditingVehicleClass()->setRawValue(value);
+        }
+    });
 }
 
+DECLARE_SETTINGSFACT(AppSettings, preferredFirmwareClass)
+DECLARE_SETTINGSFACT(AppSettings, preferredVehicleClass)
 DECLARE_SETTINGSFACT(AppSettings, offlineEditingFirmwareClass)
 DECLARE_SETTINGSFACT(AppSettings, offlineEditingVehicleClass)
 DECLARE_SETTINGSFACT(AppSettings, offlineEditingCruiseSpeed)
@@ -121,12 +158,14 @@ DECLARE_SETTINGSFACT(AppSettings, offlineEditingDescentSpeed)
 DECLARE_SETTINGSFACT(AppSettings, batteryPercentRemainingAnnounce)
 DECLARE_SETTINGSFACT(AppSettings, defaultMissionItemAltitude)
 DECLARE_SETTINGSFACT(AppSettings, audioMuted)
+DECLARE_SETTINGSFACT(AppSettings, audioVolume)
 DECLARE_SETTINGSFACT(AppSettings, virtualJoystick)
 DECLARE_SETTINGSFACT(AppSettings, virtualJoystickAutoCenterThrottle)
 DECLARE_SETTINGSFACT(AppSettings, virtualJoystickLeftHandedMode)
-DECLARE_SETTINGSFACT(AppSettings, appFontPointSize)
+DECLARE_SETTINGSFACT(AppSettings, uiScalePercent)
 DECLARE_SETTINGSFACT(AppSettings, savePath)
 DECLARE_SETTINGSFACT(AppSettings, androidDontSaveToSDCard)
+DECLARE_SETTINGSFACT(AppSettings, androidUsePosixSerial)
 DECLARE_SETTINGSFACT(AppSettings, useChecklist)
 DECLARE_SETTINGSFACT(AppSettings, enforceChecklist)
 DECLARE_SETTINGSFACT(AppSettings, enableMultiVehiclePanel)
@@ -140,8 +179,11 @@ DECLARE_SETTINGSFACT(AppSettings, vworldToken)
 DECLARE_SETTINGSFACT(AppSettings, openaipToken)
 DECLARE_SETTINGSFACT(AppSettings, gstDebugLevel)
 DECLARE_SETTINGSFACT(AppSettings, followTarget)
+DECLARE_SETTINGSFACT(AppSettings, clearSettingsNextBoot)
 DECLARE_SETTINGSFACT(AppSettings, disableAllPersistence)
 DECLARE_SETTINGSFACT(AppSettings, firstRunPromptIdsShown)
+DECLARE_SETTINGSFACT(AppSettings, favoriteParameters)
+DECLARE_SETTINGSFACT(AppSettings, showAppLogTimestampAsElapsedTime)
 
 DECLARE_SETTINGSFACT_NO_FUNC(AppSettings, indoorPalette)
 {
@@ -186,6 +228,11 @@ DECLARE_SETTINGSFACT_NO_FUNC(AppSettings, qLocaleLanguage)
                 rgEnumValues.append(languageInfo.languageId);
             }
         }
+#endif
+#ifdef QT_DEBUG
+        // Debug builds include pseudo-localization for UI layout testing
+        rgEnumStrings.append(AppSettings::tr("Pseudo Localization (Test Only)"));
+        rgEnumValues.append(QLocale::Esperanto);
 #endif
         metaData->setEnumInfo(rgEnumStrings, rgEnumValues);
 
@@ -329,6 +376,12 @@ QLocale::Language AppSettings::_qLocaleLanguageEarlyAccess(void)
             return localeLanguage;
         }
     }
+
+#ifdef QT_DEBUG
+    if (localeLanguage == QLocale::Esperanto) {
+        return localeLanguage;
+    }
+#endif
 
     localeLanguage = QLocale::AnyLanguage;
     settings.setValue(qLocaleLanguageName, localeLanguage);

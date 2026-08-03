@@ -12,6 +12,8 @@ RowLayout {
     required property var planMasterController
     property bool showRallyPointsHelp: false
 
+    signal toolbarButtonClicked()
+
     id: root
     spacing: ScreenTools.defaultFontPixelWidth
 
@@ -114,35 +116,39 @@ RowLayout {
     QGCPalette { id: qgcPal }
 
     QGCButton {
+        objectName: "planToolbar_openButton"
         text: qsTr("Open")
         iconSource: "/qmlimages/Plan.svg"
         enabled: !_planMasterController.syncInProgress
-        onClicked: _openButtonClicked()
+        onClicked: { toolbarButtonClicked(); _openButtonClicked() }
     }
 
     QGCButton {
+        objectName: "planToolbar_saveButton"
         text: qsTr("Save")
         iconSource: "/res/SaveToDisk.svg"
         enabled: !_syncInProgress && _hasPlanItems
         primary: _saveDirty
-        onClicked: _saveButtonClicked()
+        onClicked: { toolbarButtonClicked(); _saveButtonClicked() }
     }
 
     QGCButton {
         id: uploadButton
+        objectName: "planToolbar_uploadButton"
         text: qsTr("Upload")
         iconSource: "/res/UploadToVehicle.svg"
-        enabled: !_syncInProgress && _hasPlanItems
+        enabled: !_syncInProgress && _hasPlanItems && !_controllerOffline
         visible: !_syncInProgress
-        primary: _uploadDirty
-        onClicked: _uploadClicked()
+        primary: _uploadDirty && !_controllerOffline
+        onClicked: { toolbarButtonClicked(); _uploadClicked() }
     }
 
     QGCButton {
+        objectName: "planToolbar_clearButton"
         text: qsTr("Clear")
         iconSource: "/res/TrashCan.svg"
         enabled: !_syncInProgress
-        onClicked: _clearClicked()
+        onClicked: { toolbarButtonClicked(); _clearClicked() }
     }
 
     QGCButton {
